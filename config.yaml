@@ -1,0 +1,106 @@
+app:
+  name: "RNA-PLUM"
+  version: "2.0"
+  timezone: "Europe/Warsaw"
+
+paths:
+  logs_root: "D:/RNA/logs_raw"                 # folder z podfolderami kursów
+  merged_logs_out: "D:/RNA/_staging/merged"    # opcjonalnie, jeśli chcesz zachować CSV po scaleniu
+  db_path: "D:/RNA/_db/rna_plum.duckdb"
+  parquet_root: "D:/RNA/_parquet"             # partycje surowe/kanoniczne
+  output_root: "D:/RNA/_out"
+  reports_excel: "D:/RNA/_out/raport_zbiorczy.xlsx"
+  individual_reports_dir: "D:/RNA/_out/raporty_indywidualne"
+  pdf_dir: "D:/RNA/_out/pdf"
+  excel_template: "D:/RNA/templates/wzor_raportu.xlsx"
+
+inputs:
+  # opcjonalne
+  teachers_xlsx: "D:/RNA/dane/Dane_NA.xlsx"          # kolumny: ID_PLUM, Pełna nazwa, ...
+  html_id_email: "D:/RNA/dane/ID_Email.html"         # alternatywne źródło email->ID
+  courses_meta: "D:/RNA/dane/courses_meta.xlsx"      # course_key->kierunek/wydzial
+
+ingest:
+  filename_coursekey_regex: "^logs_(?P<coursekey>.+?)_\\d{8}-\\d{4}\\.csv$"
+  recursive: true
+  delimiter_detect: true
+  encoding_detect: true
+  normalize_to_utf8: true
+  dedup:
+    mode: "full_row_hash"     # zgodnie z VBA: dedup tylko identyczny wiersz
+    hash: "sha1"
+  sort:
+    by_time_column_names: ["czas","time","timecreated","data","date"]
+    newest_first: true
+
+userid_extraction:
+  # zgodne z VBA: "The user with id '7997' ..."
+  regexes:
+    - "user with id\\s*'(?P<id>\\d+)'"
+    - "id\\s*=\\s*(?P<id>\\d+)"
+  prefer_columns: ["userid","user id","ID","ID_PLUM"]  # jeśli obecne w logach
+  fallback_to_description: true
+
+filters:
+  drop_if_email_contains:
+    - "student"       # jak VBA usuwa wiersze, gdzie mail zawiera student
+  drop_if_username_contains:
+    - "student"
+  # dodatkowo: whitelist domen, jeśli potrzebne
+  allowed_email_domains: []   # np. ["umw.edu.pl"]
+  # zakres czasu (opcjonalnie)
+  date_from: null
+  date_to: null
+
+activity_mapping:
+  # "Legenda1": exact match po event_name (odpowiednik kol. D)
+  exact:
+    # raw_event_name: activity_label
+    "Course module created": "Materiały"
+    "Question created": "Pytania"
+  # "Legenda2": contains match po description (odpowiednik szukania fragmentu w M)
+  contains:
+    "mod_quiz": "Testy/Quizy"
+    "forum post": "Forum"
+  # opcjonalnie regex (najbardziej elastyczne)
+  regex:
+    - pattern: "assign(ment)?"
+      label: "Zadania"
+      flags: "i"
+      priority: 50
+
+aggregation:
+  group_keys:
+    - teacher_id
+    - course_key
+    - activity_label
+  percent_denominators:
+    course: ["course_key"]
+    kierunek: ["kierunek"]
+    wydzial: ["wydzial"]
+    uczelnia: []  # global
+  min_count_thresholds:
+    # progi do “flagowania” a nie do kasowania
+    low_activity_total: 1
+    suspiciously_high_per_day: 500
+
+reports:
+  excel:
+    include_qc_log: true
+    sheets:
+      zliczenie: "ZLICZENIE_AKTYWNOSCI_NA"
+      uczelnia: "PODSUM_UCZELNIA"
+      wydzial: "PODSUM_WYDZIAL"
+      kierunek: "PODSUM_KIERUNEK"
+      kurs: "PODSUM_KURS"
+      qc: "QC_LOG"
+
+  individual_xlsx:
+    sheet_courses: "DANE_KURSY"
+    sheet_person: "DANE_PERS"
+
+  pdf:
+    enabled: true
+    engine: "excel_com"        # "excel_com" (Windows) albo "libreoffice" (fallback)
+    template_fill_mode: "anchors"  # "anchors" (label->value) lub "named_ranges"
+    export_quality: "standard"

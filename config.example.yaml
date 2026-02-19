@@ -1,0 +1,19 @@
+# Szukamy wszystkich CSV w katalogu root i podkatalogach (możesz zawęzić np. "logs/**/*.csv")
+input_glob: "**/*.csv"
+
+# Plik formularza (Excel) zawierający arkusz KEYS
+keys_workbook: "RNA_PLUM_Form.xlsx"
+keys_sheet: "KEYS"
+
+# Nazwy kolumn w logach
+col_time: "Czas"
+col_context: "Kontekst zdarzenia"
+col_desc: "Opis"
+col_component: "Składnik"
+col_event_name: "Nazwa zdarzenia"
+
+# Kurs i okres z Kontekst zdarzenia
+course_regex: "Kurs:\\s*([^\\s]+)"
+period_regex: "(\\d{4}/\\d{2}[zl])"
+
+chunk_rows: 200000

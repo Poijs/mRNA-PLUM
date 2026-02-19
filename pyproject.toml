@@ -1,5 +1,5 @@
 [project]
-name = "mna-plum"
+name = "mrna-plum"
 version = "0.1.0"
 description = "mRNA-PLUM CLI (merge/parse/stats/export) for Moodle/PLUM logs"
 requires-python = ">=3.10"
