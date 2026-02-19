@@ -6,7 +6,7 @@ class ConfigError(mRnaPlumError):
     pass
 
 
-class InputDataError(RnaPlumError):
+class InputDataError(mRnaPlumError):
     pass
 
 

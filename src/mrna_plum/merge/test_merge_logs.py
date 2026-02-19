@@ -6,8 +6,8 @@ from pathlib import Path
 import duckdb
 import pytest
 
-from rna_plum.store.duckdb_store import open_store
-from rna_plum.merge.merge_logs import merge_logs_into_duckdb
+from mrna_plum.store.duckdb_store import open_store
+from mrna_plum.merge.merge_logs import merge_logs_to_parquet_streaming
 
 
 def _write_csv_bytes(path: Path, data: bytes) -> None:

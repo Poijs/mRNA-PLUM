@@ -6,7 +6,7 @@ from typing import Iterable, Optional
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from rna_plum.io.csv_read import detect_csv_dialect, iter_csv_rows_streaming
+from mrna_plum.io.csv_read import detect_csv_dialect, iter_csv_rows_streaming
 
 
 def merge_logs_to_parquet_streaming(
