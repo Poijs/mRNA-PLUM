@@ -125,7 +125,7 @@ def cmd_build_db(
 
     merged_parquet = paths.parquet_dir / "merged_raw.parquet"
     if not merged_parquet.exists():
-        raise InputDataError(f"Missing merged parquet. Run: rna_plum merge-logs --root ...  Expected: {merged_parquet}")
+        raise InputDataError(f"Missing merged parquet. Run: mrna_plum merge-logs --root ...  Expected: {merged_parquet}")
 
     progress.emit("parse", "start", "Parsing merged logs & applying rules")
     logger.info("[parse] start rules=%s", len(rules))
@@ -226,7 +226,7 @@ def cmd_export_individual(
     _write_marker(paths, "export_individual")
     logger.info("[export_individual] count=%s out_dir=%s", n, out_folder)
 
-from rna_plum.init_project import init_project
+from mrna_plum.init_project import init_project
 
 def cmd_init(args):
     created = init_project(args.root)
@@ -235,7 +235,7 @@ def cmd_init(args):
 @app.command("merge-logs")
 def merge_logs_cmd(
     logs_root: Path = typer.Option(..., "--logs-root", exists=True, file_okay=False, dir_okay=True),
-    db_path: Path = typer.Option(..., "--db-path", help="Ścieżka do DuckDB (np. D:/RNA/_db/rna_plum.duckdb)"),
+    db_path: Path = typer.Option(..., "--db-path", help="Ścieżka do DuckDB (np. E:/RNA/_db/mrna_plum.duckdb)"),
     export_mode: str = typer.Option(
         "duckdb",
         "--export-mode",
