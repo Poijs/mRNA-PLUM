@@ -16,6 +16,8 @@ from .parse import parse_merged_parquet
 from .store import DuckDbStore
 from .stats import compute_stats
 from .reports import export_excel_aggregates, export_individual_packages
+from mrna_plum.store.duckdb_store import open_store
+from mrna_plum.merge.merge_logs import merge_logs_into_duckdb
 
 app = typer.Typer(add_completion=False)
 
@@ -229,3 +231,40 @@ from rna_plum.init_project import init_project
 def cmd_init(args):
     created = init_project(args.root)
     print(f"Created {len(created)} folders")
+
+@app.command("merge-logs")
+def merge_logs_cmd(
+    logs_root: Path = typer.Option(..., "--logs-root", exists=True, file_okay=False, dir_okay=True),
+    db_path: Path = typer.Option(..., "--db-path", help="Ścieżka do DuckDB (np. D:/RNA/_db/rna_plum.duckdb)"),
+    export_mode: str = typer.Option(
+        "duckdb",
+        "--export-mode",
+        help="duckdb (tylko zapis do DB) | parquet (eksport per-kurs) | csv (eksport per-kurs *_full_log.csv)",
+    ),
+    export_dir: Path | None = typer.Option(
+        None,
+        "--export-dir",
+        help="Wymagane dla export-mode=csv/parquet. Folder wyjściowy per kurs.",
+    ),
+    chunk_size: int = typer.Option(2000, "--chunk-size", min=100, help="Batch insert do DuckDB"),
+):
+    export_mode = export_mode.lower().strip()
+    if export_mode not in ("duckdb", "parquet", "csv"):
+        raise typer.BadParameter("export-mode must be one of: duckdb, parquet, csv")
+
+    if export_mode in ("csv", "parquet") and export_dir is None:
+        raise typer.BadParameter("--export-dir is required for export-mode=csv/parquet")
+
+    con = open_store(db_path)
+    try:
+        res = merge_logs_into_duckdb(
+            root=logs_root,
+            con=con,
+            export_mode=export_mode,
+            export_dir=export_dir,
+            chunk_size=chunk_size,
+        )
+    finally:
+        con.close()
+
+    typer.echo(f"OK: courses={res.courses}, files={res.files}, inserted_rows={res.inserted_rows}")
