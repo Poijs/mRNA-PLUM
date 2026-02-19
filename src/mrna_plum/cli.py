@@ -223,3 +223,9 @@ def cmd_export_individual(
     progress.emit("export_individual", "done", "Individual packages exported", extra={"count": n, "out_dir": str(out_folder)})
     _write_marker(paths, "export_individual")
     logger.info("[export_individual] count=%s out_dir=%s", n, out_folder)
+
+from rna_plum.init_project import init_project
+
+def cmd_init(args):
+    created = init_project(args.root)
+    print(f"Created {len(created)} folders")
