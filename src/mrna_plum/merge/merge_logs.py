@@ -9,7 +9,7 @@ import pyarrow.parquet as pq
 from mrna_plum.io.csv_read import detect_csv_dialect, iter_csv_rows_streaming
 
 
-def merge_logs_to_parquet_streaming(
+def merge_logs_to_parquet(
     input_files: list[Path],
     parquet_out: Path,
     *,
