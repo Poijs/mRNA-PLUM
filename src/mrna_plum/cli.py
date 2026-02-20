@@ -22,7 +22,7 @@ from mrna_plum.parse.parse_events import run_parse_events
 
 from .activities.snapshots_load import load_snapshots_into_duckdb  # albo loader PL
 from .activities.activities_state import build_activities_state, BuildConfig, DeletionConfig, MappingConfig, IncrementalConfig
-from mrna_plum.activities.snapshots_plum_load import load_plum_snapshot_file_into_duckdb
+from mrna_plum.activities.snapshots_load import load_plum_snapshot_file_into_duckdb
 
 app = typer.Typer(add_completion=False)
 
