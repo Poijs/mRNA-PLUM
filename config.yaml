@@ -197,3 +197,4 @@ export:
   max_rows_excel: 1000000
   overflow_strategy: "error"
 
+export_individual_reports(con, cfg)
