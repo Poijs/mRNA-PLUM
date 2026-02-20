@@ -1,72 +1,665 @@
 from __future__ import annotations
+
+import json
+from dataclasses import dataclass
 from pathlib import Path
-from ..store.duckdb_store import DuckDbStore
+from datetime import datetime, timezone
+from typing import Optional, Sequence
 
-def compute_stats(store: DuckDbStore, period: str | None) -> None:
+import duckdb
+import pandas as pd
+import yaml
+
+
+# ----------------------------
+# Helpers / config
+# ----------------------------
+
+@dataclass(frozen=True)
+class StatsConfig:
+    duckdb_path: Path
+    run_dir: Path
+    include_deleted_in_percent: bool
+    rebuild_full: bool
+
+    # mapping sources
+    map_teacher_id_email_path: Optional[Path]
+    map_email_hr_path: Optional[Path]
+
+    # rounding
+    pct_round_decimals: int
+
+    # period
+    ay: Optional[str]
+    term: Optional[str]
+
+
+def _load_config(root: Path) -> dict:
+    cfg_path = root / "config.yaml"
+    if not cfg_path.exists():
+        raise FileNotFoundError(f"Brak config.yaml pod: {cfg_path}")
+    return yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
+
+
+def _resolve_path(root: Path, p: Optional[str]) -> Optional[Path]:
+    if not p:
+        return None
+    pp = Path(p)
+    return pp if pp.is_absolute() else (root / pp)
+
+
+def _ensure_run_artifacts(run_dir: Path) -> None:
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+
+def _log_progress(run_dir: Path, payload: dict) -> None:
+    p = run_dir / "progress.jsonl"
+    payload2 = dict(payload)
+    payload2["ts"] = datetime.now(timezone.utc).isoformat()
+    with p.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(payload2, ensure_ascii=False) + "\n")
+
+
+def _write_ok(run_dir: Path) -> None:
+    (run_dir / "compute-stats.ok").write_text(
+        datetime.now(timezone.utc).isoformat(),
+        encoding="utf-8",
+    )
+
+
+def _read_mapping_teacher_email(path: Optional[Path]) -> pd.DataFrame:
     """
-    Zasady (starter):
-    - jeśli object_id jest NULL -> liczymy event-based (cnt_events)
-    - jeśli object_id jest nie-NULL -> cnt_objects = COUNT(DISTINCT object_id)
-    - unieważnienie: dla tego samego course_code+teacher_id+tech_key+object_id
-      jeśli są jednocześnie TAK i TAK_FLAG -> is_invalidated = True (i to nie liczymy finalnie w VBA)
+    Oczekiwane kolumny: teacher_id, email
     """
-    store.init_schema()
+    if path is None:
+        return pd.DataFrame(columns=["teacher_id", "email"])
+    if not path.exists():
+        raise FileNotFoundError(f"Brak pliku mapowania teacher_id→email: {path}")
 
-    with store.connect() as con:
-        # filtr okresu jeśli znany
-        period_filter = ""
-        params = []
-        if period:
-            period_filter = "WHERE period = ?"
-            params = [period]
+    if path.suffix.lower() in [".xlsx", ".xls"]:
+        df = pd.read_excel(path, dtype=str)
+    else:
+        df = pd.read_csv(path, dtype=str)
 
-        con.execute("DELETE FROM stats_agg")  # per-run
+    df = df.rename(columns={c: c.strip() for c in df.columns})
+    # normalizacja nazw (tolerancyjnie)
+    cols = {c.lower(): c for c in df.columns}
+    tid = cols.get("teacher_id") or cols.get("id") or cols.get("userid")
+    eml = cols.get("email") or cols.get("mail")
+    if not tid or not eml:
+        raise ValueError(f"Plik {path} musi mieć kolumny teacher_id oraz email (lub równoważne).")
+
+    out = df[[tid, eml]].copy()
+    out.columns = ["teacher_id", "email"]
+    out["teacher_id"] = out["teacher_id"].astype(str).str.strip()
+    out["email"] = out["email"].astype(str).str.strip().str.lower()
+    out = out.dropna().drop_duplicates()
+    return out
+
+
+def read_hr_table(hr_file: Path, sheet: str | None,
+                  email_col: str, full_name_col: str | None,
+                  wydzial_col: str | None, jednostka_col: str | None,
+                  passthrough_cols: list[str] | None = None) -> pd.DataFrame:
+    if not hr_file.exists():
+        raise FileNotFoundError(f"Brak pliku HR: {hr_file}")
+
+    if hr_file.suffix.lower() in [".xlsx", ".xls"]:
+        df = pd.read_excel(hr_file, sheet_name=sheet or 0, dtype=str)
+    else:
+        # jeśli kiedyś HR będzie w TSV/CSV
+        df = pd.read_csv(hr_file, sep=None, engine="python", dtype=str)
+
+    df = df.rename(columns={c: str(c).strip() for c in df.columns})
+
+    def pick(colname: str | None) -> pd.Series:
+        if not colname:
+            return pd.Series([""] * len(df))
+        if colname not in df.columns:
+            raise ValueError(f"HR: brak kolumny '{colname}'. Dostępne: {list(df.columns)}")
+        return df[colname].astype(str)
+
+    out = pd.DataFrame()
+    out["email"] = pick(email_col).str.strip().str.lower()
+    out["full_name"] = pick(full_name_col).str.strip() if full_name_col else ""
+    out["wydzial"] = pick(wydzial_col).str.strip() if wydzial_col else ""
+    out["jednostka"] = pick(jednostka_col).str.strip() if jednostka_col else ""
+
+    if passthrough_cols:
+        for c in passthrough_cols:
+            if c not in df.columns:
+                raise ValueError(f"HR passthrough: brak kolumny '{c}'")
+            out[c] = df[c].astype(str).str.strip()
+
+    out = out[out["email"].notna() & (out["email"] != "")]
+    out = out.drop_duplicates(subset=["email"])
+    return out
+
+
+def _read_mapping_email_hr(path: Optional[Path]) -> pd.DataFrame:
+    """
+    Oczekiwane minimum: email, full_name, wydzial, jednostka
+    (kolumny mogą się nazywać inaczej -> dopasowanie tolerancyjne)
+    """
+    if path is None:
+        return pd.DataFrame(columns=["email", "full_name", "wydzial", "jednostka"])
+    if not path.exists():
+        raise FileNotFoundError(f"Brak pliku mapowania email→HR: {path}")
+
+    if path.suffix.lower() in [".xlsx", ".xls"]:
+        df = pd.read_excel(path, dtype=str)
+    else:
+        df = pd.read_csv(path, dtype=str)
+
+    df = df.rename(columns={c: c.strip() for c in df.columns})
+    cols = {c.lower(): c for c in df.columns}
+
+    email = cols.get("email") or cols.get("mail") or cols.get("e-mail")
+    full_name = cols.get("full_name") or cols.get("imie_nazwisko") or cols.get("name") or cols.get("nazwiskoimie")
+    wydzial = cols.get("wydzial") or cols.get("wydział")
+    jednostka = cols.get("jednostka") or cols.get("unit") or cols.get("katedra")
+
+    if not email:
+        raise ValueError(f"Plik HR {path} musi mieć kolumnę email/mail/e-mail.")
+
+    out = pd.DataFrame()
+    out["email"] = df[email].astype(str).str.strip().str.lower()
+
+    out["full_name"] = df[full_name].astype(str).str.strip() if full_name else ""
+    out["wydzial"] = df[wydzial].astype(str).str.strip() if wydzial else ""
+    out["jednostka"] = df[jednostka].astype(str).str.strip() if jednostka else ""
+
+    out = out.dropna().drop_duplicates(subset=["email"])
+    return out
+
+
+# ----------------------------
+# Main compute
+# ----------------------------
+
+def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = None) -> None:
+    cfg = _load_config(root)
+
+    # minimalne oczekiwane ścieżki (dopasuj do Twojego config-a)
+    duckdb_path = _resolve_path(root, cfg.get("duckdb_path") or cfg.get("warehouse", {}).get("duckdb_path") or "_run/warehouse.duckdb")
+    run_dir = _resolve_path(root, cfg.get("run_dir") or "_run") or (root / "_run")
+
+    aggregation = cfg.get("aggregation", {}) or {}
+    include_deleted_in_percent = bool(aggregation.get("include_deleted_in_percent", False))
+    rebuild_full = bool(cfg.get("rebuild_full", False))
+
+    pct_round_decimals = int(cfg.get("stats", {}).get("pct_round_decimals", 4))
+
+    map_teacher_id_email_path = _resolve_path(root, cfg.get("mapping", {}).get("teacher_id_email"))
+    map_email_hr_path = _resolve_path(root, cfg.get("mapping", {}).get("email_hr"))
+
+    # okres: CLI ma pierwszeństwo, potem config
+    ay_eff = ay or cfg.get("period", {}).get("ay")
+    term_eff = term or cfg.get("period", {}).get("term")
+    if not rebuild_full and (not ay_eff or not term_eff):
+        raise ValueError("Brak ay/term. Ustaw period.ay + period.term w config.yaml albo podaj w CLI, albo włącz rebuild_full=true.")
+
+    sc = StatsConfig(
+        duckdb_path=duckdb_path,
+        run_dir=run_dir,
+        include_deleted_in_percent=include_deleted_in_percent,
+        rebuild_full=rebuild_full,
+        map_teacher_id_email_path=map_teacher_id_email_path,
+        map_email_hr_path=map_email_hr_path,
+        pct_round_decimals=pct_round_decimals,
+        ay=ay_eff,
+        term=term_eff,
+    )
+
+    _ensure_run_artifacts(sc.run_dir)
+    _log_progress(sc.run_dir, {"step": "start", "duckdb_path": str(sc.duckdb_path)})
+
+    # wczytaj mapowania (pandas OK, ale tylko jako lookup tables)
+    df_tid_email = _read_mapping_teacher_email(sc.map_teacher_id_email_path)
+    df_email_hr = _read_mapping_email_hr(sc.map_email_hr_path)
+
+    con = duckdb.connect(str(sc.duckdb_path))
+    try:
+        con.execute("CREATE SCHEMA IF NOT EXISTS mart;")
+
+        # wstrzyknij mappingi do DuckDB
+        con.register("map_tid_email_df", df_tid_email)
+        con.register("map_email_hr_df", df_email_hr)
+
+        con.execute("""
+            CREATE OR REPLACE TEMP VIEW map_tid_email AS
+            SELECT DISTINCT
+                teacher_id,
+                lower(trim(email)) AS email
+            FROM map_tid_email_df
+            WHERE teacher_id IS NOT NULL AND teacher_id <> ''
+              AND email IS NOT NULL AND email <> '';
+        """)
+
+        con.execute("""
+            CREATE OR REPLACE TEMP VIEW map_email_hr AS
+            SELECT DISTINCT
+                lower(trim(email)) AS email,
+                nullif(trim(full_name), '') AS full_name,
+                nullif(trim(wydzial), '') AS wydzial,
+                nullif(trim(jednostka), '') AS jednostka
+            FROM map_email_hr_df
+            WHERE email IS NOT NULL AND email <> '';
+        """)
+
+        # okres filter
+        period_where = ""
+        if not sc.rebuild_full:
+            period_where = "AND ay = ? AND term = ?"
+
+        _log_progress(sc.run_dir, {"step": "prepare_events_period", "rebuild_full": sc.rebuild_full, "ay": sc.ay, "term": sc.term})
 
         con.execute(f"""
-            INSERT INTO stats_agg
-            WITH base AS (
-                SELECT
-                    period,
-                    course_code,
-                    teacher_id,
-                    tech_key,
-                    object_id,
-                    operation
-                FROM raw_logs
-                {period_filter}
-                WHERE count_to_report = TRUE
-                  AND tech_key IS NOT NULL
-            ),
-            invalids AS (
-                SELECT
-                    period, course_code, teacher_id, tech_key, object_id,
-                    MAX(CASE WHEN operation='TAK' THEN 1 ELSE 0 END) AS has_tak,
-                    MAX(CASE WHEN operation='TAK_FLAG' THEN 1 ELSE 0 END) AS has_flag
-                FROM base
-                GROUP BY 1,2,3,4,5
-            ),
-            roll AS (
-                SELECT
-                    b.period, b.course_code, b.teacher_id, b.tech_key,
-                    COUNT(*) AS cnt_events,
-                    COUNT(DISTINCT b.object_id) AS cnt_objects,
-                    MAX(CASE WHEN i.has_tak=1 AND i.has_flag=1 THEN 1 ELSE 0 END) AS is_invalidated
-                FROM base b
-                LEFT JOIN invalids i
-                  ON i.period=b.period
-                 AND i.course_code=b.course_code
-                 AND i.teacher_id=b.teacher_id
-                 AND i.tech_key=b.tech_key
-                 AND ( (i.object_id IS NULL AND b.object_id IS NULL) OR i.object_id=b.object_id )
-                GROUP BY 1,2,3,4
-            )
+            CREATE OR REPLACE TEMP VIEW events_period AS
             SELECT
-                period,
                 course_code,
+                ay,
+                term,
+                wydzial_code,
+                kierunek_code,
+                track_code,
+                semester_code,
+                ts_utc,
                 teacher_id,
+                operation,
                 tech_key,
-                cnt_events,
-                cnt_objects,
-                is_invalidated=1 AS is_invalidated
-            FROM roll
-        """, params)
+                activity_label,
+                object_id,
+                count_mode
+            FROM events_canonical
+            WHERE counted = true
+            {period_where};
+        """, ([] if sc.rebuild_full else [sc.ay, sc.term]))
+
+        # join ze stanem aktywności
+        _log_progress(sc.run_dir, {"step": "join_activities_state"})
+
+        con.execute("""
+            CREATE OR REPLACE TEMP VIEW joined_state AS
+            SELECT
+                e.*,
+                s.status_final,
+                s.deleted_at,
+                s.visible_last,
+                s.confidence_deleted,
+                CASE
+                    WHEN s.activity_id IS NULL THEN 1 ELSE 0
+                END AS qa_missing_state
+            FROM events_period e
+            LEFT JOIN mart.activities_state s
+              ON s.course_code = e.course_code
+             AND s.activity_id = e.object_id;
+        """)
+
+        # QA: students + missing mappings
+        _log_progress(sc.run_dir, {"step": "qa_teacher_mapping"})
+
+        con.execute("""
+            CREATE OR REPLACE TEMP VIEW teacher_enriched AS
+            SELECT
+                j.*,
+                m.email,
+                h.full_name,
+                h.wydzial AS hr_wydzial,
+                h.jednostka AS hr_jednostka,
+                CASE WHEN m.email ILIKE '%@student.umw.edu.pl' THEN 1 ELSE 0 END AS is_student,
+                CASE WHEN m.email IS NULL THEN 1 ELSE 0 END AS qa_missing_email,
+                CASE WHEN m.email IS NOT NULL AND h.email IS NULL THEN 1 ELSE 0 END AS qa_missing_hr
+            FROM joined_state j
+            LEFT JOIN map_tid_email m
+              ON m.teacher_id = j.teacher_id
+            LEFT JOIN map_email_hr h
+              ON h.email = m.email;
+        """)
+
+        # QA table init
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS mart.metrics_qa (
+                ay VARCHAR,
+                term VARCHAR,
+                qa_type VARCHAR,
+                teacher_id VARCHAR,
+                course_code VARCHAR,
+                tech_key VARCHAR,
+                object_id VARCHAR,
+                details VARCHAR,
+                created_at TIMESTAMP
+            );
+        """)
+
+        # incremental delete for qa for period (opcjonalnie)
+        if not sc.rebuild_full:
+            con.execute("DELETE FROM mart.metrics_qa WHERE ay = ? AND term = ?;", [sc.ay, sc.term])
+
+        # wpisy QA: student ignored
+        con.execute("""
+            INSERT INTO mart.metrics_qa
+            SELECT
+                ay, term,
+                'STUDENT_IGNORED' AS qa_type,
+                teacher_id, course_code, tech_key, object_id,
+                'email=' || coalesce(email,'') AS details,
+                now() AS created_at
+            FROM teacher_enriched
+            WHERE is_student = 1;
+        """)
+
+        # QA: brak email dla teacher_id
+        con.execute("""
+            INSERT INTO mart.metrics_qa
+            SELECT
+                ay, term,
+                'MISSING_EMAIL_MAPPING' AS qa_type,
+                teacher_id, course_code, tech_key, object_id,
+                'teacher_id has no email mapping' AS details,
+                now() AS created_at
+            FROM teacher_enriched
+            WHERE is_student = 0 AND qa_missing_email = 1;
+        """)
+
+        # QA: brak HR
+        con.execute("""
+            INSERT INTO mart.metrics_qa
+            SELECT
+                ay, term,
+                'MISSING_HR_MAPPING' AS qa_type,
+                teacher_id, course_code, tech_key, object_id,
+                'email=' || coalesce(email,'') AS details,
+                now() AS created_at
+            FROM teacher_enriched
+            WHERE is_student = 0 AND qa_missing_email = 0 AND qa_missing_hr = 1;
+        """)
+
+        # QA: event bez wpisu w activities_state
+        con.execute("""
+            INSERT INTO mart.metrics_qa
+            SELECT
+                ay, term,
+                'EVENT_WITHOUT_ACTIVITY_STATE' AS qa_type,
+                teacher_id, course_code, tech_key, object_id,
+                'no activities_state row for object_id' AS details,
+                now() AS created_at
+            FROM teacher_enriched
+            WHERE qa_missing_state = 1;
+        """)
+
+        # QA: confidence_deleted < 1
+        con.execute("""
+            INSERT INTO mart.metrics_qa
+            SELECT
+                ay, term,
+                'CONFIDENCE_LT_1' AS qa_type,
+                teacher_id, course_code, tech_key, object_id,
+                'confidence_deleted=' || cast(confidence_deleted AS VARCHAR) AS details,
+                now() AS created_at
+            FROM teacher_enriched
+            WHERE confidence_deleted IS NOT NULL AND confidence_deleted < 1;
+        """)
+
+        # baza do metryk: tylko teachers z HR + nie-studenci
+        con.execute("""
+            CREATE OR REPLACE TEMP VIEW teacher_ok AS
+            SELECT *
+            FROM teacher_enriched
+            WHERE is_student = 0
+              AND qa_missing_email = 0
+              AND qa_missing_hr = 0;
+        """)
+
+        # widoczne do procentów
+        con.execute("""
+            CREATE OR REPLACE TEMP VIEW visible_ok AS
+            SELECT *
+            FROM teacher_ok
+            WHERE status_final = 'visible_active';
+        """)
+
+        # agregaty QA (deleted/hidden/unknown) per teacher/course/tech_key
+        # (tu zakładam status_final wartości: visible_active / deleted / hidden / unknown; dopasuj jeśli inne)
+        con.execute("""
+            CREATE OR REPLACE TEMP VIEW qa_counts AS
+            SELECT
+                ay, term,
+                teacher_id,
+                course_code,
+                tech_key,
+                SUM(CASE WHEN status_final = 'deleted' THEN 1 ELSE 0 END) AS deleted_count,
+                SUM(CASE WHEN status_final = 'hidden' THEN 1 ELSE 0 END) AS hidden_count,
+                SUM(CASE WHEN status_final IS NULL OR status_final = 'unknown' THEN 1 ELSE 0 END) AS unknown_count,
+                MAX(CASE WHEN confidence_deleted IS NOT NULL AND confidence_deleted < 1 THEN 1 ELSE 0 END) AS confidence_flag
+            FROM teacher_ok
+            GROUP BY 1,2,3,4,5;
+        """)
+
+        # counts (widoczne) z uwzględnieniem count_mode
+        # UWAGA: zakładam, że w obrębie (teacher, course, tech_key) count_mode jest spójny.
+        con.execute("""
+            CREATE OR REPLACE TEMP VIEW counts_visible AS
+            SELECT
+                ay, term,
+                teacher_id,
+                course_code,
+                wydzial_code,
+                kierunek_code,
+                tech_key,
+                any_value(activity_label) AS activity_label,
+                CASE
+                    WHEN max(count_mode) = 'object-based' THEN COUNT(DISTINCT object_id)
+                    ELSE COUNT(*)
+                END AS count_value,
+                CASE WHEN min(count_mode) <> max(count_mode) THEN 1 ELSE 0 END AS qa_mixed_count_mode
+            FROM visible_ok
+            GROUP BY 1,2,3,4,5,6,7;
+        """)
+
+        # QA: mixed count_mode
+        con.execute("""
+            INSERT INTO mart.metrics_qa
+            SELECT
+                ay, term,
+                'MIXED_COUNT_MODE' AS qa_type,
+                teacher_id, course_code, tech_key, NULL AS object_id,
+                'min!=max count_mode in group' AS details,
+                now() AS created_at
+            FROM counts_visible
+            WHERE qa_mixed_count_mode = 1;
+        """)
+
+        # procenty - tylko visible_active
+        # pct_course: sum per course_code+tech_key
+        # pct_kierunek: sum per kierunek_code+tech_key
+        # pct_wydzial: sum per wydzial_code+tech_key
+        # pct_uczelnia: sum per ay+term+tech_key
+        con.execute(f"""
+            CREATE OR REPLACE TEMP VIEW metrics_core AS
+            SELECT
+                c.ay, c.term,
+                c.teacher_id,
+                c.course_code,
+                c.wydzial_code,
+                c.kierunek_code,
+                c.tech_key,
+                c.activity_label,
+                c.count_value,
+
+                ROUND(
+                    c.count_value
+                    / NULLIF(SUM(c.count_value) OVER (PARTITION BY c.ay, c.term, c.course_code, c.tech_key), 0),
+                    {sc.pct_round_decimals}
+                ) AS pct_course,
+
+                ROUND(
+                    c.count_value
+                    / NULLIF(SUM(c.count_value) OVER (PARTITION BY c.ay, c.term, c.kierunek_code, c.tech_key), 0),
+                    {sc.pct_round_decimals}
+                ) AS pct_kierunek,
+
+                ROUND(
+                    c.count_value
+                    / NULLIF(SUM(c.count_value) OVER (PARTITION BY c.ay, c.term, c.wydzial_code, c.tech_key), 0),
+                    {sc.pct_round_decimals}
+                ) AS pct_wydzial,
+
+                ROUND(
+                    c.count_value
+                    / NULLIF(SUM(c.count_value) OVER (PARTITION BY c.ay, c.term, c.tech_key), 0),
+                    {sc.pct_round_decimals}
+                ) AS pct_uczelnia
+            FROM counts_visible c;
+        """)
+
+        # metrics_long table
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS mart.metrics_long (
+                ay VARCHAR,
+                term VARCHAR,
+                teacher_id VARCHAR,
+                full_name VARCHAR,
+                email VARCHAR,
+                wydzial VARCHAR,
+                jednostka VARCHAR,
+                course_code VARCHAR,
+                tech_key VARCHAR,
+                activity_label VARCHAR,
+                count_value BIGINT,
+                pct_course DOUBLE,
+                pct_kierunek DOUBLE,
+                pct_wydzial DOUBLE,
+                pct_uczelnia DOUBLE,
+                deleted_count BIGINT,
+                hidden_count BIGINT,
+                unknown_count BIGINT,
+                confidence_flag BOOLEAN
+            );
+        """)
+
+        # incremental delete for long for period
+        if not sc.rebuild_full:
+            _log_progress(sc.run_dir, {"step": "incremental_delete_long", "ay": sc.ay, "term": sc.term})
+            con.execute("DELETE FROM mart.metrics_long WHERE ay = ? AND term = ?;", [sc.ay, sc.term])
+        else:
+            _log_progress(sc.run_dir, {"step": "rebuild_full_long"})
+            con.execute("DELETE FROM mart.metrics_long;")
+
+        # insert long = core + HR + QA counts
+        _log_progress(sc.run_dir, {"step": "insert_metrics_long"})
+
+        con.execute("""
+            INSERT INTO mart.metrics_long
+            SELECT
+                mc.ay,
+                mc.term,
+                mc.teacher_id,
+                h.full_name,
+                m.email,
+                h.hr_wydzial AS wydzial,
+                h.hr_jednostka AS jednostka,
+                mc.course_code,
+                mc.tech_key,
+                mc.activity_label,
+                mc.count_value,
+                mc.pct_course,
+                mc.pct_kierunek,
+                mc.pct_wydzial,
+                mc.pct_uczelnia,
+                coalesce(q.deleted_count, 0) AS deleted_count,
+                coalesce(q.hidden_count, 0) AS hidden_count,
+                coalesce(q.unknown_count, 0) AS unknown_count,
+                coalesce(q.confidence_flag, 0) = 1 AS confidence_flag
+            FROM metrics_core mc
+            JOIN (
+                SELECT DISTINCT teacher_id, email FROM map_tid_email
+            ) m ON m.teacher_id = mc.teacher_id
+            JOIN (
+                SELECT DISTINCT
+                    t.teacher_id,
+                    t.email,
+                    t.full_name,
+                    t.hr_wydzial,
+                    t.hr_jednostka
+                FROM teacher_ok t
+            ) h ON h.teacher_id = mc.teacher_id
+            LEFT JOIN qa_counts q
+              ON q.ay = mc.ay AND q.term = mc.term
+             AND q.teacher_id = mc.teacher_id
+             AND q.course_code = mc.course_code
+             AND q.tech_key = mc.tech_key;
+        """)
+
+        # metrics_wide table (dynamic columns)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS mart.metrics_wide (
+                ay VARCHAR,
+                term VARCHAR,
+                teacher_id VARCHAR,
+                course_code VARCHAR
+                -- dynamic columns added by INSERT SELECT (DuckDB allows it if table has those cols; so we recreate per period)
+            );
+        """)
+
+        # dla wide: lepiej robić per okres -> create/replace temp wide i potem zapisać do tabeli partycjonowanej
+        # w DuckDB najprościej: skasować okres i wstawić wynik z dynamicznego SELECT do "mart.metrics_wide_period",
+        # a potem zmergować. Tu robię wersję: trzymamy wide jako "append-only per period" i usuwamy tylko okres.
+        if not sc.rebuild_full:
+            _log_progress(sc.run_dir, {"step": "incremental_delete_wide", "ay": sc.ay, "term": sc.term})
+            con.execute("DELETE FROM mart.metrics_wide WHERE ay = ? AND term = ?;", [sc.ay, sc.term])
+        else:
+            con.execute("DELETE FROM mart.metrics_wide;")
+
+        # pobierz tech_key dla okresu
+        tech_keys: Sequence[str] = [r[0] for r in con.execute("""
+            SELECT DISTINCT tech_key
+            FROM mart.metrics_long
+            WHERE ay = ? AND term = ?
+            ORDER BY tech_key;
+        """, [sc.ay, sc.term]).fetchall()] if not sc.rebuild_full else [r[0] for r in con.execute("""
+            SELECT DISTINCT tech_key FROM mart.metrics_long ORDER BY tech_key;
+        """).fetchall()]
+
+        _log_progress(sc.run_dir, {"step": "build_metrics_wide", "tech_keys": list(tech_keys)})
+
+        # dynamiczne kolumny (count_*, pct_course_* ...)
+        # UWAGA: nazwy kolumn muszą być bezpieczne -> tech_key normalizujemy do [a-zA-Z0-9_]
+        def safe_col(s: str) -> str:
+            out = []
+            for ch in s:
+                if ch.isalnum():
+                    out.append(ch)
+                else:
+                    out.append("_")
+            return "".join(out)
+
+        select_cols = ["ay", "term", "teacher_id", "course_code"]
+        for tk in tech_keys:
+            c = safe_col(tk)
+            select_cols.append(f"MAX(CASE WHEN tech_key='{tk}' THEN count_value END) AS count_{c}")
+            select_cols.append(f"MAX(CASE WHEN tech_key='{tk}' THEN pct_course END) AS pct_course_{c}")
+            select_cols.append(f"MAX(CASE WHEN tech_key='{tk}' THEN pct_kierunek END) AS pct_kierunek_{c}")
+            select_cols.append(f"MAX(CASE WHEN tech_key='{tk}' THEN pct_wydzial END) AS pct_wydzial_{c}")
+            select_cols.append(f"MAX(CASE WHEN tech_key='{tk}' THEN pct_uczelnia END) AS pct_uczelnia_{c}")
+
+        wide_sql = f"""
+            INSERT INTO mart.metrics_wide
+            SELECT
+                {", ".join(select_cols)}
+            FROM mart.metrics_long
+            {"WHERE ay = ? AND term = ?" if not sc.rebuild_full else ""}
+            GROUP BY ay, term, teacher_id, course_code;
+        """
+
+        if not sc.rebuild_full:
+            con.execute(wide_sql, [sc.ay, sc.term])
+        else:
+            con.execute(wide_sql)
+
+        # artefakty
+        _log_progress(sc.run_dir, {"step": "done"})
+        _write_ok(sc.run_dir)
+
+    finally:
+        con.close()

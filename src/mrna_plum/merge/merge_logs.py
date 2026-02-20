@@ -263,3 +263,47 @@ def merge_logs_into_duckdb(
     
 
 __all__ = ["merge_logs_into_duckdb"]
+
+
+from pathlib import Path
+from typing import Optional, Any, Dict
+import duckdb
+
+# ...reszta Twojego kodu...
+
+def merge_logs_into_duckdb(
+    *,
+    root: Path,
+    con: duckdb.DuckDBPyConnection,
+    export_mode: str = "duckdb",
+    export_dir: Optional[Path] = None,
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    """
+    Publiczny wrapper zgodny z testami/CLI.
+    - export_mode: "duckdb" lub "csv"
+    - export_dir: wymagane gdy export_mode="csv"
+    Zwraca słownik z metadanymi runu (np. inserted_rows itd.)
+    """
+    export_mode = (export_mode or "duckdb").lower().strip()
+    if export_mode not in ("duckdb", "csv"):
+        raise ValueError(f"export_mode must be 'duckdb' or 'csv', got: {export_mode}")
+
+    if export_mode == "csv" and export_dir is None:
+        raise ValueError("export_dir is required when export_mode='csv'")
+
+    # Dopasuj tę linię do Twojej istniejącej funkcji “rdzeniowej”.
+    # Przykłady możliwych nazw, które już masz:
+    # - merge_logs(...)
+    # - merge_logs_run(...)
+    # - merge_logs_to_store(...)
+    # - merge_logs_into_store(...)
+    #
+    # Poniżej używam przykładowej nazwy: merge_logs(...)
+    return merge_logs_into_duckdb (
+        root=root,
+        con=con,
+        export_mode=export_mode,
+        export_dir=export_dir,
+        **kwargs,
+    )

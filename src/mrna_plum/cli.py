@@ -356,3 +356,17 @@ def cmd_build_activities_state(
     progress.emit("activities_state", "done", "Activities state built", extra=stats)
     _write_marker(paths, "activities_state")
     logger.info("[activities_state] done %s", stats)
+
+import typer
+from pathlib import Path
+from mrna_plum.stats.compute_stats import compute_stats
+
+app = typer.Typer()
+
+@app.command("compute-stats")
+def compute_stats_cmd(
+    root: Path = typer.Option(..., "--root", exists=True, file_okay=False, dir_okay=True),
+    ay: str | None = typer.Option(None, "--ay"),
+    term: str | None = typer.Option(None, "--term"),
+):
+    compute_stats(root=root, ay=ay, term=term)

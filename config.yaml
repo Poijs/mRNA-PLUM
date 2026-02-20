@@ -157,3 +157,36 @@ build_activities_state:
 
   qa:
     write_all_conflicts: true
+
+duckdb_path: _run/warehouse.duckdb
+run_dir: _run
+
+period:
+  ay: "2025/26"
+  term: "Z"   # np. Z/L
+
+rebuild_full: false
+
+aggregation:
+  include_deleted_in_percent: false
+
+stats:
+  pct_round_decimals: 4
+
+mapping:
+  teacher_id_email: data/mapping/teacher_id_email.xlsx
+
+hr:
+  file: data/hr/HR.xlsx
+  sheet: "HR"   # jeśli masz, jak nie to usuń i weź pierwszy arkusz
+  teacher_id_col: "ID_PLUM"
+  email_col: "E-mail"
+  full_name_col: "Pełna nazwa"
+  wydzial_col: "Wydział jednostki zatrudnienia"
+  jednostka_col: "Jednostka podlegajaca rozliczeniu"
+  teachers_only: true
+  passthrough_cols:
+    - "ID bazus"
+
+
+
