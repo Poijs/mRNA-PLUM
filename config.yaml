@@ -123,3 +123,37 @@ parse_events:
 
     date_from: null
     date_to: null
+
+build_activities_state:
+  snapshots_dir: "_data/snapshots"
+  snapshots_glob: "*.csv"
+
+  # jak interpretujemy activity_id w snapshotach:
+  activity_id_kind: "cmid"  # "cmid" | "module_id" | "unknown"
+
+  deletion:
+    delete_operations: ["DELETE"]     # jeśli operation jest standaryzowane
+    delete_tech_keys: []              # np. ["activity_delete", "mod_delete_*"] – jeśli KEYS tak steruje
+    delete_activity_labels_regex: []  # jeśli w KEYS activity_label niesie semantykę usunięcia
+    disappearance_grace_period_days: 14
+    min_missing_snapshots_to_confirm: 2
+    deleted_at_policy: "first_missing"  # "first_missing" | "last_seen"
+
+  mapping:
+    use_activity_id_map_table: true
+    allow_fuzzy_name_type_match: false
+    name_normalization:
+      lower: true
+      strip: true
+      collapse_ws: true
+      remove_diacritics: true
+      remove_punctuation: true
+
+  incremental:
+    checkpoint_table: "raw.pipeline_checkpoints"
+    checkpoint_key: "build_activities_state"
+    process_only_new_snapshots: true
+    process_only_new_events: true
+
+  qa:
+    write_all_conflicts: true

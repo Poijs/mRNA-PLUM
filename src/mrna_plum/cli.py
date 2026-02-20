@@ -20,6 +20,9 @@ from mrna_plum.store.duckdb_store import open_store
 from mrna_plum.merge.merge_logs import merge_logs_into_duckdb
 from mrna_plum.parse.parse_events import run_parse_events
 
+from .activities.snapshots_load import load_snapshots_into_duckdb  # albo loader PL
+from .activities.activities_state import build_activities_state, BuildConfig, DeletionConfig, MappingConfig, IncrementalConfig
+
 app = typer.Typer(add_completion=False)
 
 # Exit codes
@@ -288,3 +291,67 @@ def parse_events_cmd(
         keys_xlsx_override=keys_xlsx,
     )
     raise SystemExit(exit_code)
+
+@app.command("build-activities-state")
+@_main_guard
+def cmd_build_activities_state(
+    root: str = typer.Option(..., "--root"),
+    config: str | None = typer.Option(None, "--config"),
+    snapshot_file: str = typer.Option(..., "--snapshot-file", help="CSV 'zawartość kursów' wybrany w VBA"),
+):
+    root_p = _resolve_root(root)
+    cfg_p = _resolve_config(root_p, config)
+    paths = ProjectPaths(root=root_p)
+    _ensure_dirs(paths)
+
+    logger = setup_file_logger(paths.run_dir / "run.log")
+    progress = ProgressWriter(paths.run_dir / "progress.jsonl")
+
+    cfg = load_config(cfg_p)
+
+    snap_path = Path(snapshot_file).resolve()
+    if not snap_path.exists():
+        raise InputDataError(f"Snapshot file not found: {snap_path}")
+
+    # DB
+    store = DuckDbStore(paths.duckdb_path)
+    store.init_schema()
+
+    progress.emit("activities_state", "start", "Loading snapshots & building activities_state",
+                  extra={"snapshot_file": str(snap_path), "db": str(paths.duckdb_path)})
+    logger.info("[activities_state] start snapshot=%s", snap_path)
+
+    with store.connect() as con:
+        # 1) load snapshot do raw.activities_snapshot (idempotent)
+        #    UWAGA: tu wywołaj loader dopasowany do formatu PL (Nazwa kursu/ID aktywności/...)
+        load_stats = load_snapshots_into_duckdb(con, snap_path.parent, glob=snap_path.name)
+        progress.emit("activities_state", "snapshots_loaded", "Snapshots loaded", extra=load_stats)
+
+        # 2) build state (MERGE do mart.activities_state + QA + view)
+        bcfg = cfg.build_activities_state  # zależy jak masz config model; jeśli to dict -> cfg["build_activities_state"]
+        build_cfg = BuildConfig(
+            deletion=DeletionConfig(
+                delete_operations=["DELETE"],  # bo u Ciebie zawsze DELETE
+                delete_tech_keys=[],
+                delete_activity_labels_regex=[],
+                disappearance_grace_period_days=int(bcfg.deletion.disappearance_grace_period_days),
+                min_missing_snapshots_to_confirm=int(bcfg.deletion.min_missing_snapshots_to_confirm),
+                deleted_at_policy="first_missing",
+            ),
+            mapping=MappingConfig(
+                use_activity_id_map_table=True,
+                allow_fuzzy_name_type_match=False,
+            ),
+            incremental=IncrementalConfig(
+                checkpoint_table="raw.pipeline_checkpoints",
+                checkpoint_key="build_activities_state",
+                process_only_new_snapshots=True,
+                process_only_new_events=True,
+            ),
+        )
+
+        stats = build_activities_state(con, build_cfg)
+
+    progress.emit("activities_state", "done", "Activities state built", extra=stats)
+    _write_marker(paths, "activities_state")
+    logger.info("[activities_state] done %s", stats)
