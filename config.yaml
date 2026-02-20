@@ -188,5 +188,12 @@ hr:
   passthrough_cols:
     - "ID bazus"
 
-
+export:
+  activity_column: "activity_label"
+  course_column: "course_name"
+  include_hr_cols: true
+  exclude_zero_counts: true
+  percent_excel_format: true
+  max_rows_excel: 1000000
+  overflow_strategy: "error"
 

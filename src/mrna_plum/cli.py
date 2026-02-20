@@ -370,3 +370,39 @@ def compute_stats_cmd(
     term: str | None = typer.Option(None, "--term"),
 ):
     compute_stats(root=root, ay=ay, term=term)
+
+import typer
+import duckdb
+from pathlib import Path
+
+from mrna_plum.reports.export_excel import export_summary_excel, EXIT_OVERFLOW, ExportOverflowError
+
+app = typer.Typer()
+
+@app.command("export-excel")
+def export_excel_cmd(
+    root: str = typer.Option(..., "--root", help="Root katalog pipeline (ma mieć _run i _out)"),
+    db_path: str = typer.Option(None, "--db-path", help="Ścieżka do DuckDB; jeśli brak, weź z config"),
+    config_path: str = typer.Option(None, "--config", help="Opcjonalnie: config.yaml"),
+):
+    # TODO: wpiąć w Wasz loader configa (tu minimalny szkic)
+    cfg = {
+        "root": root,
+        "report": {"ay": "UNKNOWN_AY", "term": "UNKNOWN_TERM"},
+        "export": {"max_rows_excel": 1_000_000, "overflow_strategy": "error"},
+    }
+
+    # jeśli masz loader yaml -> tutaj go użyj i nadpisz cfg
+
+    # db path: preferuj config
+    db = db_path or cfg.get("paths", {}).get("db_path")
+    if not db:
+        raise typer.BadParameter("Brak --db-path i brak paths.db_path w config")
+
+    con = duckdb.connect(db)
+
+    try:
+        code, out_path = export_summary_excel(con, cfg)
+        raise typer.Exit(code)
+    except ExportOverflowError:
+        raise typer.Exit(EXIT_OVERFLOW)

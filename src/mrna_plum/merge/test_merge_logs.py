@@ -8,6 +8,7 @@ import pytest
 
 from mrna_plum.store.duckdb_store import open_store
 from mrna_plum.merge.merge_logs import merge_logs_to_parquet
+from mrna_plum.merge.merge_logs import merge_logs_into_duckdb, MergeLogsResult
 
 
 def _write_csv_bytes(path: Path, data: bytes) -> None:
