@@ -186,71 +186,75 @@ def merge_logs_into_duckdb(
     - dedup po payload_json+row_key (czyli cały wiersz po trim)
     - sortowanie malejąco po czasie realizowane przy eksporcie (ORDER BY)
     """
-    grouped = group_logs_by_course(root)
-    total_files = sum(len(v) for v in grouped.values())
-    total_inserted = 0
+    try:
+        grouped = group_logs_by_course(root)
+        total_files = sum(len(v) for v in grouped.values())
+        total_inserted = 0
 
-    for course, files in grouped.items():
-        create_stage_table(con)
+        for course, files in grouped.items():
+            create_stage_table(con)
 
-        buf: List[EventRawRow] = []
+            buf: List[EventRawRow] = []
 
-        for fpath in files:
-            dialect = detect_csv_dialect(fpath)
+            for fpath in files:
+                dialect = detect_csv_dialect(fpath)
 
-            # czytamy header z pierwszego niepustego wiersza; potem payload zawsze jako dict(header->value)
-            time_idx: Optional[int] = None
-            header_ref: Optional[List[str]] = None
+                # czytamy header z pierwszego niepustego wiersza; potem payload zawsze jako dict(header->value)
+                time_idx: Optional[int] = None
+                header_ref: Optional[List[str]] = None
 
-            for header, row in iter_csv_rows_streaming(fpath, dialect=dialect):
-                if header_ref is None:
-                    header_ref = header
-                    time_idx = pick_time_column_index(header_ref)
+                for header, row in iter_csv_rows_streaming(fpath, dialect=dialect):
+                    if header_ref is None:
+                        header_ref = header
+                        time_idx = pick_time_column_index(header_ref)
 
-                # jeśli header się różni między plikami — nie wywalamy procesu,
-                # tylko mapujemy po indeksach do aktualnego headera z tej iteracji.
-                payload = {header[i]: (row[i] if i < len(row) else "") for i in range(len(header))}
-                payload_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+                    # jeśli header się różni między plikami — nie wywalamy procesu,
+                    # tylko mapujemy po indeksach do aktualnego headera z tej iteracji.
+                    payload = {header[i]: (row[i] if i < len(row) else "") for i in range(len(header))}
+                    payload_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
-                time_text = None
-                time_iso = None
-                if time_idx is not None and time_idx < len(row):
-                    time_text = row[time_idx]
-                    time_iso = _parse_time_to_iso(time_text)
+                    time_text = None
+                    time_iso = None
+                    if time_idx is not None and time_idx < len(row):
+                        time_text = row[time_idx]
+                        time_iso = _parse_time_to_iso(time_text)
 
-                row_key = _normalize_fields_key(row)
+                    row_key = _normalize_fields_key(row)
 
-                buf.append(
-                    EventRawRow(
-                        course=course,
-                        time_text=time_text,
-                        time_ts_iso=time_iso,
-                        row_key=row_key,
-                        payload_json=payload_json,
-                        source_file=str(fpath),
+                    buf.append(
+                        EventRawRow(
+                            course=course,
+                            time_text=time_text,
+                            time_ts_iso=time_iso,
+                            row_key=row_key,
+                            payload_json=payload_json,
+                            source_file=str(fpath),
+                        )
                     )
-                )
 
-                if len(buf) >= chunk_size:
-                    insert_stage_rows(con, buf)
-                    buf.clear()
+                    if len(buf) >= chunk_size:
+                        insert_stage_rows(con, buf)
+                        buf.clear()
 
-        if buf:
-            insert_stage_rows(con, buf)
-            buf.clear()
+            if buf:
+                insert_stage_rows(con, buf)
+                buf.clear()
 
-        inserted = merge_stage_into_events_raw(con)
-        total_inserted += inserted
+            inserted = merge_stage_into_events_raw(con)
+            total_inserted += inserted
 
-        # opcjonalny eksport per kurs
-        if export_mode in ("csv", "parquet"):
-            if export_dir is None:
-                raise ValueError("export_dir is required for export_mode=csv/parquet")
-            if export_mode == "csv":
-                out_csv = export_dir / f"{course}_full_log.csv"
-                export_course_to_csv(con, course=course, out_csv=out_csv)
-            else:
-                out_pq = export_dir / f"{course}_full_log.parquet"
-                export_course_to_parquet(con, course=course, out_parquet=out_pq)
+            # opcjonalny eksport per kurs
+            if export_mode in ("csv", "parquet"):
+                if export_dir is None:
+                    raise ValueError("export_dir is required for export_mode=csv/parquet")
+                if export_mode == "csv":
+                    out_csv = export_dir / f"{course}_full_log.csv"
+                    export_course_to_csv(con, course=course, out_csv=out_csv)
+                else:
+                    out_pq = export_dir / f"{course}_full_log.parquet"
+                    export_course_to_parquet(con, course=course, out_parquet=out_pq)
 
-    return MergeLogsResult(courses=len(grouped), files=total_files, inserted_rows=total_inserted)
+        return MergeLogsResult(courses=len(grouped), files=total_files, inserted_rows=total_inserted)
+    except UnicodeDecodeError as e:
+        # tu masz ładny komunikat: który plik/kurs poleciał
+        raise RuntimeError(f"UnicodeDecodeError while reading CSV: course={course}, file={fpath}") from e

@@ -4,7 +4,7 @@ import csv
 import io
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator, Optional
+from typing import Iterable, Iterator, Optional, Tuple, List
 import pandas as pd
 
 def read_csv_safely(path: Path) -> pd.DataFrame:
@@ -31,20 +31,24 @@ _TIME_COL_CANDIDATES = ("Czas", "Time", "Date", "TimeCreated")
 
 
 def detect_encoding(path: Path) -> str:
-    """
-    Wymagania:
-    - wykrywaj utf-8 z BOM albo windows-1250 (cp1250)
-    """
-    raw = path.read_bytes()[:8192]
-    if raw.startswith(b"\xef\xbb\xbf"):
+    raw = path.read_bytes()
+    sample = raw[:32768]
+
+    if sample.startswith(b"\xef\xbb\xbf"):
         return "utf-8-sig"
 
-    # Spróbuj utf-8 (bez BOM). Jeśli nie da się zdekodować -> cp1250.
     try:
-        raw.decode("utf-8")
+        sample.decode("utf-8", errors="strict")
         return "utf-8"
     except UnicodeDecodeError:
+        pass
+
+    # najczęstsze w PL logach
+    try:
+        sample.decode("cp1250", errors="strict")
         return "cp1250"
+    except UnicodeDecodeError:
+        return "iso-8859-2"
 
 
 def detect_delimiter(sample_text: str) -> str:
@@ -65,7 +69,7 @@ def detect_delimiter(sample_text: str) -> str:
 def detect_csv_dialect(path: Path) -> CsvDialectInfo:
     enc = detect_encoding(path)
     # czytaj próbkę tekstu do wykrycia delimitera
-    with path.open("r", encoding=enc, errors="strict", newline="") as f:
+    with path.open("r", encoding=enc, errors="replace", newline="") as f:
         sample = f.read(16384)
     delim = detect_delimiter(sample)
     # jeśli enc="utf-8" bez BOM, OK; jeśli BOM był, to utf-8-sig
@@ -79,31 +83,38 @@ def iter_csv_rows_streaming(
     *,
     dialect: Optional[CsvDialectInfo] = None,
 ) -> Iterator[tuple[list[str], list[str]]]:
-    """
-    Streamingowy reader CSV:
-    - nie ładuje całości do RAM
-    - usuwa CR (newline="" + normalizacja)
-    - BOM obsługuje encoding utf-8-sig
-    Zwraca iterator (header, row_fields).
-    """
     d = dialect or detect_csv_dialect(path)
 
-    with path.open("r", encoding=d.encoding, errors="strict", newline="") as f:
-        reader = csv.reader(f, delimiter=d.delimiter)
-        header: Optional[list[str]] = None
+    # Kolejność prób: najpierw to co wykryte, potem sensowne fallbacki
+    enc_try = [d.encoding]
+    for e in ("utf-8-sig", "utf-8", "cp1250", "latin2"):
+        if e not in enc_try:
+            enc_try.append(e)
 
-        for row in reader:
-            # normalizacja: trim każdej komórki
-            row = [c.strip() for c in row]
-            # pomijaj puste wiersze
-            if not any(row):
-                continue
-            if header is None:
-                header = row
-                continue
-            assert header is not None
-            yield header, row
+    last_err: Exception | None = None
 
+    for enc in enc_try:
+        try:
+            with path.open("r", encoding=enc, errors="strict", newline="") as f:
+                reader = csv.reader(f, delimiter=d.delimiter)
+                header: Optional[list[str]] = None
+
+                for row in reader:
+                    row = [c.strip() for c in row]
+                    if not any(row):
+                        continue
+                    if header is None:
+                        header = row
+                        continue
+                    yield header, row
+            return  # <- cały plik przeczytany OK w tym encodingu
+
+        except UnicodeDecodeError as e:
+            last_err = e
+            continue
+
+    # jeśli nic nie zadziałało
+    raise last_err  # type: ignore
 
 def pick_time_column_index(header: list[str]) -> Optional[int]:
     """
