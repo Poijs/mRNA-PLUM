@@ -18,6 +18,7 @@ from .stats import compute_stats
 from .reports import export_excel_aggregates, export_individual_packages
 from mrna_plum.store.duckdb_store import open_store
 from mrna_plum.merge.merge_logs import merge_logs_into_duckdb
+from mrna_plum.parse.parse_events import run_parse_events
 
 app = typer.Typer(add_completion=False)
 
@@ -268,3 +269,22 @@ def merge_logs_cmd(
         con.close()
 
     typer.echo(f"OK: courses={res.courses}, files={res.files}, inserted_rows={res.inserted_rows}")
+
+@app.command("parse-events")
+def parse_events_cmd(
+    root: str,
+    config: str,
+    keys_xlsx: str = None,
+):
+    """
+    Parse raw Moodle/PLUM CSV logs into canonical events table (DuckDB + optional Parquet).
+    """
+    from mrna_plum.config import load_config
+    cfg = load_config(config)
+
+    exit_code = run_parse_events(
+        cfg,
+        root=root,
+        keys_xlsx_override=keys_xlsx,
+    )
+    raise SystemExit(exit_code)

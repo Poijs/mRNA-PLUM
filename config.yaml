@@ -104,3 +104,22 @@ reports:
     engine: "excel_com"        # "excel_com" (Windows) albo "libreoffice" (fallback)
     template_fill_mode: "anchors"  # "anchors" (label->value) lub "named_ranges"
     export_quality: "standard"
+
+parse_events:
+  keys_xlsx: "{root}/KEYS.xlsx"   # VBA podmieni {root} lub przekaże absolutną ścieżkę
+  keys_sheet: "KEYS"
+  fetch_size: 5000
+  insert_batch_size: 20000
+  export_parquet: true
+
+  filters:
+    student_email_domain: "@student.umw.edu.pl"
+
+    tech_key_whitelist: []      # np. ["URL_CREATE","URL_DELETE"]
+    tech_key_blacklist: []      # np. ["FOLDER_VIEWED"]
+
+    source_whitelist: []        # np. ["web", "cli"]
+    source_blacklist: []        # np. ["cron"]
+
+    date_from: null
+    date_to: null

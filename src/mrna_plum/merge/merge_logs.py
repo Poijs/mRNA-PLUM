@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import re
 import hashlib
+import pyarrow as pa
+import pyarrow.parquet as pq
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
