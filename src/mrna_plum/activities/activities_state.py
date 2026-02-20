@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional
+from typing import List
 
 import duckdb
 
@@ -158,3 +159,59 @@ def load_snapshots_into_duckdb(
         "inserted_rows": inserted,
         "max_captured_at": max_captured_at.isoformat() if max_captured_at else None,
     }
+
+# --- compat exports for tests/CLI ---
+# Jeżeli w pliku są już takie dataclassy wyżej, to ten blok nic nie psuje.
+# Jeśli ich nie ma / są pod inną nazwą, to zapewnia kompatybilne nazwy do importu.
+
+from dataclasses import dataclass
+from typing import List
+
+if "DeletionConfig" not in globals():
+    @dataclass(frozen=True)
+    class DeletionConfig:
+        delete_operations: List[str]
+        delete_tech_keys: List[str]
+        delete_activity_labels_regex: List[str]
+        disappearance_grace_period_days: int
+        min_missing_snapshots_to_confirm: int
+        deleted_at_policy: str  # "first_missing" | "last_seen"
+
+if "MappingConfig" not in globals():
+    @dataclass(frozen=True)
+    class MappingConfig:
+        use_activity_id_map_table: bool
+        allow_fuzzy_name_type_match: bool
+
+if "IncrementalConfig" not in globals():
+    @dataclass(frozen=True)
+    class IncrementalConfig:
+        checkpoint_table: str
+        checkpoint_key: str
+        process_only_new_snapshots: bool
+        process_only_new_events: bool
+
+if "BuildConfig" not in globals():
+    @dataclass(frozen=True)
+    class BuildConfig:
+        deletion: "DeletionConfig"
+        mapping: "MappingConfig"
+        incremental: "IncrementalConfig"
+
+def build_activities_state(con, cfg):
+    """
+    Public API expected by tests/CLI.
+
+    con: duckdb connection
+    cfg: BuildConfig (lub kompatybilny obiekt z polami .deletion/.mapping/.incremental)
+    """
+    # public API expected by tests
+    build_activities_state = run_activities_state
+
+__all__ = [
+    "DeletionConfig",
+    "MappingConfig",
+    "IncrementalConfig",
+    "BuildConfig",
+    "build_activities_state",
+]

@@ -260,3 +260,6 @@ def merge_logs_into_duckdb(
     except UnicodeDecodeError as e:
         # tu masz ładny komunikat: który plik/kurs poleciał
         raise RuntimeError(f"UnicodeDecodeError while reading CSV: course={course}, file={fpath}") from e
+    
+
+__all__ = ["merge_logs_into_duckdb"]
