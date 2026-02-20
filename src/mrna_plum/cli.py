@@ -22,6 +22,7 @@ from mrna_plum.parse.parse_events import run_parse_events
 
 from .activities.snapshots_load import load_snapshots_into_duckdb  # albo loader PL
 from .activities.activities_state import build_activities_state, BuildConfig, DeletionConfig, MappingConfig, IncrementalConfig
+from mrna_plum.activities.snapshots_plum_load import load_plum_snapshot_file_into_duckdb
 
 app = typer.Typer(add_completion=False)
 
@@ -324,7 +325,7 @@ def cmd_build_activities_state(
     with store.connect() as con:
         # 1) load snapshot do raw.activities_snapshot (idempotent)
         #    UWAGA: tu wywołaj loader dopasowany do formatu PL (Nazwa kursu/ID aktywności/...)
-        load_stats = load_snapshots_into_duckdb(con, snap_path.parent, glob=snap_path.name)
+        load_stats = load_plum_snapshot_file_into_duckdb(con, snap_path)
         progress.emit("activities_state", "snapshots_loaded", "Snapshots loaded", extra=load_stats)
 
         # 2) build state (MERGE do mart.activities_state + QA + view)
