@@ -195,6 +195,46 @@ def merge_logs_into_duckdb(
         chunk_size=chunk_size,
     )
 
+_COURSE_ID_PATTERNS = [
+    # najczęstsze w Moodle logs (EN)
+    re.compile(r"course with id\s+'(\d+)'", re.IGNORECASE),
+    re.compile(r"course with id\s+(\d+)", re.IGNORECASE),
+
+    # czasem bez apostrofów
+    re.compile(r"\bcourse id\b\s*[:=]?\s*(\d+)", re.IGNORECASE),
+
+    # PL warianty (na wszelki wypadek)
+    re.compile(r"\bid kursu\b\s*[:=]?\s*(\d+)", re.IGNORECASE),
+]
+
+
+def _extract_course_id_from_payload(payload: Dict[str, str]) -> Optional[int]:
+    """
+    Szukamy course_id głównie w polu 'Opis' (czasem 'Description'),
+    ale dla bezpieczeństwa przeszukujemy też cały payload.
+    """
+    candidates: List[str] = []
+
+    # preferowane pola
+    for k in ("Opis", "Description", "Event description", "Nazwa zdarzenia", "Kontekst zdarzenia"):
+        v = payload.get(k)
+        if v:
+            candidates.append(v)
+
+    # fallback: cały payload (join wartości)
+    if not candidates:
+        candidates.append(" | ".join([v for v in payload.values() if v]))
+
+    text = " \n ".join(candidates)
+
+    for rx in _COURSE_ID_PATTERNS:
+        m = rx.search(text)
+        if m:
+            try:
+                return int(m.group(1))
+            except Exception:
+                return None
+    return None
 
 def _merge_logs_into_duckdb_impl(
     *,
@@ -229,6 +269,7 @@ def _merge_logs_into_duckdb_impl(
 
                     payload = {header[i]: (row[i] if i < len(row) else "") for i in range(len(header))}
                     payload_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+                    course_id = _extract_course_id_from_payload(payload)
 
                     time_text = None
                     time_iso = None
@@ -241,6 +282,7 @@ def _merge_logs_into_duckdb_impl(
                     buf.append(
                         EventRawRow(
                             course=course,
+                            course_id=course_id,
                             time_text=time_text,
                             time_ts_iso=time_iso,
                             row_key=row_key,

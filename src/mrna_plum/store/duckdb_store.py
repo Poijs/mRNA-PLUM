@@ -27,6 +27,7 @@ class DuckDbStore:
                     "Składnik" VARCHAR,
                     "Nazwa zdarzenia" VARCHAR,
                     course_code VARCHAR,
+                    course_id BIGINT,
                     period VARCHAR,
                     tech_key VARCHAR,
                     activity VARCHAR,
@@ -59,6 +60,7 @@ class DuckDbStore:
 @dataclass(frozen=True)
 class EventRawRow:
     course: str
+    course_id: Optional[int]
     time_text: Optional[str]
     time_ts_iso: Optional[str]  # ISO string (UTC/naive) lub None
     row_key: str                # sha256(normalized_fields_join)
