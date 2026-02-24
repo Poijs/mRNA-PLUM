@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from logging import root
 import re
 import time
 from dataclasses import dataclass
@@ -384,7 +385,8 @@ def export_individual_reports(
     arts = _ensure_artifacts(root)
 
     out_rel = _cfg_get(cfg, "reports.individual_dir", "_out/indywidualne")
-    out_dir = (root / out_rel).resolve()
+    out_rel_p = Path(out_rel)
+    out_dir = (out_rel_p if out_rel_p.is_absolute() else (root / out_rel_p)).resolve()
     max_workers = int(_cfg_get(cfg, "reports.max_workers", 4))
     batch_teachers = int(_cfg_get(cfg, "reports.batch_teachers", 50))
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
-import sys
+
 from pathlib import Path
+from typing import Optional, Callable, Any
+
 import typer
 
 from .paths import ProjectPaths
@@ -9,24 +11,9 @@ from .logging_run import setup_file_logger
 from .ui_bridge import ProgressWriter
 from .errors import ConfigError, InputDataError, MixedPeriodsError, ProcessingError
 
-from .io.excel_keys import load_keys_sheet
-from .rules.engine import compile_rules
-from .merge import merge_logs_to_parquet
-from .parse import parse_merged_parquet
-from .store import DuckDbStore
-from .stats import compute_stats
-from .reports import export_excel_aggregates, export_individual_packages
-from mrna_plum.store.duckdb_store import open_store
-from mrna_plum.merge.merge_logs import merge_logs_into_duckdb
-from mrna_plum.parse.parse_events import run_parse_events
-
-from .activities.snapshots_load import load_snapshots_into_duckdb  # albo loader PL
-from .activities.activities_state import build_activities_state, BuildConfig, DeletionConfig, MappingConfig, IncrementalConfig
-from mrna_plum.activities.snapshots_load import load_plum_snapshot_file_into_duckdb
-
 app = typer.Typer(add_completion=False)
 
-# Exit codes
+# Exit codes (wg ustaleń)
 EC_OK = 0
 EC_CONFIG = 2
 EC_INPUT = 10
@@ -34,28 +21,39 @@ EC_MIXED = 20
 EC_PROC = 30
 EC_INTERNAL = 40
 
+
+# -------------------------
+# Helpers
+# -------------------------
 def _resolve_root(root: str) -> Path:
-    p = Path(root).resolve()
-    return p
+    return Path(root).resolve()
+
 
 def _resolve_config(root: Path, config: str | None) -> Path:
-    if config:
-        return Path(config).resolve()
-    return (root / "config.yaml").resolve()
+    return Path(config).resolve() if config else (root / "config.yaml").resolve()
+
 
 def _ensure_dirs(paths: ProjectPaths) -> None:
     paths.run_dir.mkdir(parents=True, exist_ok=True)
     paths.data_dir.mkdir(parents=True, exist_ok=True)
     paths.parquet_dir.mkdir(parents=True, exist_ok=True)
+    # opcjonalnie: out dir jeśli masz w ProjectPaths
+    try:
+        paths.out_dir.mkdir(parents=True, exist_ok=True)  # type: ignore[attr-defined]
+    except Exception:
+        (paths.root / "_out").mkdir(parents=True, exist_ok=True)
+
 
 def _write_marker(paths: ProjectPaths, step: str) -> None:
+    # marker: {step}.ok w _run
     paths.marker_path(step).write_text("ok", encoding="utf-8")
 
-def _collect_input_files(root: Path, input_glob: str) -> list[Path]:
-    files = sorted([p for p in root.glob(input_glob) if p.is_file()])
-    return files
 
-def _main_guard(fn):
+def _collect_input_files(root: Path, input_glob: str) -> list[Path]:
+    return sorted([p for p in root.glob(input_glob) if p.is_file()])
+
+
+def _main_guard(fn: Callable[..., Any]) -> Callable[..., Any]:
     def wrapper(*args, **kwargs):
         try:
             return fn(*args, **kwargs)
@@ -71,17 +69,58 @@ def _main_guard(fn):
         except ProcessingError as e:
             typer.echo(str(e), err=True)
             raise typer.Exit(code=EC_PROC)
+        except typer.Exit:
+            raise
         except Exception as e:
             typer.echo(f"Internal error: {e}", err=True)
             raise typer.Exit(code=EC_INTERNAL)
+
     return wrapper
+
+
+# -------------------------
+# Commands
+# -------------------------
+
+@app.command("init")
+@_main_guard
+def cmd_init(
+    root: str = typer.Option(..., "--root", help="Root folder projektu (np. ThisWorkbook.Path)"),
+):
+    """
+    Tworzy podstawową strukturę folderów projektu.
+    """
+    root_p = _resolve_root(root)
+
+    # lazy import - bez ryzyka cykli
+    from .init_project import init_project
+
+    created = init_project(root_p)
+    typer.echo(f"Created {len(created)} folders")
+    raise typer.Exit(code=EC_OK)
+
 
 @app.command("merge-logs")
 @_main_guard
 def cmd_merge_logs(
     root: str = typer.Option(..., "--root", help="Root folder passed from VBA (ThisWorkbook.Path)"),
     config: str | None = typer.Option(None, "--config", help="Config path; default {root}/config.yaml"),
+    mode: str = typer.Option(
+        "duckdb",
+        "--mode",
+        help="duckdb (pipeline B) | parquet (pipeline A → merged_raw.parquet)",
+        case_sensitive=False,
+    ),
 ):
+    """
+    Merge logów CSV z Moodle/PLUM.
+
+    mode=parquet:
+        CSV → merged_raw.parquet (pipeline A)
+
+    mode=duckdb:
+        CSV → DuckDB raw (pipeline B / staging)
+    """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
@@ -92,19 +131,55 @@ def cmd_merge_logs(
 
     cfg = load_config(cfg_p)
 
+    mode = mode.lower().strip()
+    if mode not in ("parquet", "duckdb"):
+        raise typer.BadParameter("--mode must be one of: duckdb, parquet")
+
     input_files = _collect_input_files(root_p, cfg.input_glob)
     if not input_files:
         raise InputDataError(f"No input files found under {root_p} with glob {cfg.input_glob}")
 
-    progress.emit("merge", "start", "Starting merge", current=0, total=len(input_files), extra={"root": str(root_p)})
-    logger.info("[merge] files=%s", len(input_files))
+    progress.emit("merge", "start", f"Starting merge ({mode})", current=0, total=len(input_files),
+                  extra={"root": str(root_p), "mode": mode})
+    logger.info("[merge] start mode=%s files=%s", mode, len(input_files))
 
-    merged_parquet = paths.parquet_dir / "merged_raw.parquet"
-    total_rows = merge_logs_to_parquet(input_files, merged_parquet, dedup_per_file=True)
+    if mode == "parquet":
+        # pipeline A
+        from .merge import merge_logs_to_parquet
 
-    progress.emit("merge", "done", "Merge finished", current=len(input_files), total=len(input_files), extra={"rows": total_rows, "parquet": str(merged_parquet)})
+        merged_parquet = paths.parquet_dir / "merged_raw.parquet"
+        total_rows = merge_logs_to_parquet(input_files, merged_parquet, dedup_per_file=True)
+
+        progress.emit("merge", "done", "Merge finished", current=len(input_files), total=len(input_files),
+                      extra={"rows": total_rows, "parquet": str(merged_parquet)})
+        _write_marker(paths, "merge")
+        logger.info("[merge] done rows=%s parquet=%s", total_rows, merged_parquet)
+        raise typer.Exit(code=EC_OK)
+
+    # mode == duckdb → pipeline B (używamy funkcji merge_logs_into_duckdb)
+    # Importy absolutne usuwamy — wszystko względnie
+    from .store.duckdb_store import open_store
+    from .merge.merge_logs import merge_logs_into_duckdb
+
+    # db_path: preferuj ProjectPaths
+    db_path = paths.duckdb_path
+    con = open_store(db_path)
+    try:
+        res = merge_logs_into_duckdb(
+            root=root_p,
+            con=con,
+            export_mode="duckdb",
+            export_dir=None,
+            chunk_size=int(getattr(cfg, "chunk_rows", 2000)),  # fallback
+        )
+    finally:
+        con.close()
+
+    progress.emit("merge", "done", "Merge finished (duckdb)", current=len(input_files), total=len(input_files),
+                  extra={"db": str(db_path), "courses": getattr(res, "courses", None), "inserted_rows": getattr(res, "inserted_rows", None)})
     _write_marker(paths, "merge")
-    logger.info("[merge] done rows=%s parquet=%s", total_rows, merged_parquet)
+    logger.info("[merge] done duckdb db=%s res=%s", db_path, res)
+    raise typer.Exit(code=EC_OK)
 
 
 @app.command("build-db")
@@ -113,6 +188,9 @@ def cmd_build_db(
     root: str = typer.Option(..., "--root"),
     config: str | None = typer.Option(None, "--config"),
 ):
+    """
+    Pipeline A: merged_raw.parquet → parsed.parquet → DuckDB(raw_logs)
+    """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
@@ -123,22 +201,29 @@ def cmd_build_db(
 
     cfg = load_config(cfg_p)
 
-    # KEYS
+    # KEYS → rules
+    from .io.excel_keys import load_keys_sheet
+    from .rules.engine import compile_rules
+
     keys_wb = (root_p / cfg.keys_workbook).resolve()
     keys_df = load_keys_sheet(keys_wb, cfg.keys_sheet)
     rules = compile_rules(keys_df)
 
     merged_parquet = paths.parquet_dir / "merged_raw.parquet"
     if not merged_parquet.exists():
-        raise InputDataError(f"Missing merged parquet. Run: mrna_plum merge-logs --root ...  Expected: {merged_parquet}")
+        raise InputDataError(f"Missing merged parquet. Run: mrna_plum merge-logs --mode parquet --root ...  Expected: {merged_parquet}")
 
     progress.emit("parse", "start", "Parsing merged logs & applying rules")
     logger.info("[parse] start rules=%s", len(rules))
 
+    from .parse import parse_merged_parquet
+
     parsed_parquet = paths.parquet_dir / "parsed.parquet"
     n_rows, run_period = parse_merged_parquet(merged_parquet, parsed_parquet, cfg, rules)
 
-    # DuckDB
+    # DuckDB load
+    from .store import DuckDbStore
+
     store = DuckDbStore(paths.duckdb_path)
     store.init_schema()
 
@@ -148,150 +233,45 @@ def cmd_build_db(
     progress.emit("db", "done", "DB built", extra={"rows": n_rows, "period": run_period})
     _write_marker(paths, "build_db")
     logger.info("[db] done rows=%s period=%s db=%s", n_rows, run_period, paths.duckdb_path)
+    raise typer.Exit(code=EC_OK)
 
-
-@app.command("compute-stats")
-@_main_guard
-def cmd_compute_stats(
-    root: str = typer.Option(..., "--root"),
-    config: str | None = typer.Option(None, "--config"),
-):
-    root_p = _resolve_root(root)
-    cfg_p = _resolve_config(root_p, config)
-    paths = ProjectPaths(root=root_p)
-    _ensure_dirs(paths)
-
-    logger = setup_file_logger(paths.run_dir / "run.log")
-    progress = ProgressWriter(paths.run_dir / "progress.jsonl")
-    cfg = load_config(cfg_p)
-
-    store = DuckDbStore(paths.duckdb_path)
-    store.init_schema()
-
-    # opcjonalnie: period z danych (weź pierwszy nie-null z raw_logs)
-    with store.connect() as con:
-        row = con.execute("SELECT period FROM raw_logs WHERE period IS NOT NULL LIMIT 1").fetchone()
-        period = row[0] if row else None
-
-    progress.emit("stats", "start", "Computing stats", extra={"period": period})
-    compute_stats(store, period)
-    progress.emit("stats", "done", "Stats computed", extra={"period": period})
-    _write_marker(paths, "stats")
-    logger.info("[stats] done period=%s", period)
-
-
-@app.command("export-excel")
-@_main_guard
-def cmd_export_excel(
-    root: str = typer.Option(..., "--root"),
-    out: str | None = typer.Option(None, "--out", help="Output xlsx; default {root}/_out/aggregates.xlsx"),
-    config: str | None = typer.Option(None, "--config"),
-):
-    root_p = _resolve_root(root)
-    cfg_p = _resolve_config(root_p, config)
-    paths = ProjectPaths(root=root_p)
-    _ensure_dirs(paths)
-
-    logger = setup_file_logger(paths.run_dir / "run.log")
-    progress = ProgressWriter(paths.run_dir / "progress.jsonl")
-    _ = load_config(cfg_p)
-
-    store = DuckDbStore(paths.duckdb_path)
-
-    out_xlsx = Path(out).resolve() if out else (root_p / "_out" / "aggregates.xlsx").resolve()
-    progress.emit("export_excel", "start", "Exporting Excel aggregates", extra={"out": str(out_xlsx)})
-    export_excel_aggregates(store, out_xlsx)
-    progress.emit("export_excel", "done", "Excel exported", extra={"out": str(out_xlsx)})
-    _write_marker(paths, "export_excel")
-    logger.info("[export_excel] out=%s", out_xlsx)
-
-
-@app.command("export-individual")
-@_main_guard
-def cmd_export_individual(
-    root: str = typer.Option(..., "--root"),
-    out_dir: str | None = typer.Option(None, "--out-dir", help="Output folder; default {root}/_out/individual"),
-    config: str | None = typer.Option(None, "--config"),
-):
-    root_p = _resolve_root(root)
-    cfg_p = _resolve_config(root_p, config)
-    paths = ProjectPaths(root=root_p)
-    _ensure_dirs(paths)
-
-    logger = setup_file_logger(paths.run_dir / "run.log")
-    progress = ProgressWriter(paths.run_dir / "progress.jsonl")
-    _ = load_config(cfg_p)
-
-    store = DuckDbStore(paths.duckdb_path)
-    out_folder = Path(out_dir).resolve() if out_dir else (root_p / "_out" / "individual").resolve()
-
-    progress.emit("export_individual", "start", "Exporting individual packages", extra={"out_dir": str(out_folder)})
-    n = export_individual_packages(store, out_folder)
-    progress.emit("export_individual", "done", "Individual packages exported", extra={"count": n, "out_dir": str(out_folder)})
-    _write_marker(paths, "export_individual")
-    logger.info("[export_individual] count=%s out_dir=%s", n, out_folder)
-
-from mrna_plum.init_project import init_project
-
-def cmd_init(args):
-    created = init_project(args.root)
-    print(f"Created {len(created)} folders")
-
-@app.command("merge-logs")
-def merge_logs_cmd(
-    logs_root: Path = typer.Option(..., "--logs-root", exists=True, file_okay=False, dir_okay=True),
-    db_path: Path = typer.Option(..., "--db-path", help="Ścieżka do DuckDB (np. E:/RNA/_db/mrna_plum.duckdb)"),
-    export_mode: str = typer.Option(
-        "duckdb",
-        "--export-mode",
-        help="duckdb (tylko zapis do DB) | parquet (eksport per-kurs) | csv (eksport per-kurs *_full_log.csv)",
-    ),
-    export_dir: Path | None = typer.Option(
-        None,
-        "--export-dir",
-        help="Wymagane dla export-mode=csv/parquet. Folder wyjściowy per kurs.",
-    ),
-    chunk_size: int = typer.Option(2000, "--chunk-size", min=100, help="Batch insert do DuckDB"),
-):
-    export_mode = export_mode.lower().strip()
-    if export_mode not in ("duckdb", "parquet", "csv"):
-        raise typer.BadParameter("export-mode must be one of: duckdb, parquet, csv")
-
-    if export_mode in ("csv", "parquet") and export_dir is None:
-        raise typer.BadParameter("--export-dir is required for export-mode=csv/parquet")
-
-    con = open_store(db_path)
-    try:
-        res = merge_logs_into_duckdb(
-            root=logs_root,
-            con=con,
-            export_mode=export_mode,
-            export_dir=export_dir,
-            chunk_size=chunk_size,
-        )
-    finally:
-        con.close()
-
-    typer.echo(f"OK: courses={res.courses}, files={res.files}, inserted_rows={res.inserted_rows}")
 
 @app.command("parse-events")
-def parse_events_cmd(
-    root: str,
-    config: str,
-    keys_xlsx: str = None,
+@_main_guard
+def cmd_parse_events(
+    root: str = typer.Option(..., "--root", help="Root projektu"),
+    config: str | None = typer.Option(None, "--config", help="config.yaml; default {root}/config.yaml"),
+    keys_xlsx: str | None = typer.Option(None, "--keys-xlsx", help="Override ścieżki KEYS.xlsx/KEYS workbook"),
 ):
     """
-    Parse raw Moodle/PLUM CSV logs into canonical events table (DuckDB + optional Parquet).
+    Pipeline B: raw (DuckDB) → events_canonical (DuckDB)
     """
-    from mrna_plum.config import load_config
-    cfg = load_config(config)
+    root_p = _resolve_root(root)
+    cfg_p = _resolve_config(root_p, config)
+    paths = ProjectPaths(root=root_p)
+    _ensure_dirs(paths)
 
-    exit_code = run_parse_events(
-        cfg,
-        root=root,
-        keys_xlsx_override=keys_xlsx,
-    )
-    raise SystemExit(exit_code)
+    logger = setup_file_logger(paths.run_dir / "run.log")
+    progress = ProgressWriter(paths.run_dir / "progress.jsonl")
+
+    cfg = load_config(cfg_p)
+
+    progress.emit("parse_events", "start", "Parsing events into events_canonical",
+                  extra={"db": str(paths.duckdb_path), "keys_xlsx": keys_xlsx})
+    logger.info("[parse_events] start db=%s", paths.duckdb_path)
+
+    # run_parse_events jest w Twoim dumpie importowany absolutnie — tu robimy względnie + lazy
+    from .parse.parse_events import run_parse_events
+
+    exit_code = run_parse_events(cfg, root=str(root_p), keys_xlsx_override=keys_xlsx)
+    if exit_code != 0:
+        raise ProcessingError(f"parse-events failed with exit code {exit_code}")
+
+    progress.emit("parse_events", "done", "Events parsed")
+    _write_marker(paths, "parse_events")
+    logger.info("[parse_events] done")
+    raise typer.Exit(code=EC_OK)
+
 
 @app.command("build-activities-state")
 @_main_guard
@@ -300,6 +280,9 @@ def cmd_build_activities_state(
     config: str | None = typer.Option(None, "--config"),
     snapshot_file: str = typer.Option(..., "--snapshot-file", help="CSV 'zawartość kursów' wybrany w VBA"),
 ):
+    """
+    Pipeline B: snapshot CSV → raw.activities_snapshot → mart.activities_state
+    """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
@@ -314,95 +297,185 @@ def cmd_build_activities_state(
     if not snap_path.exists():
         raise InputDataError(f"Snapshot file not found: {snap_path}")
 
-    # DB
+    from .store import DuckDbStore
+    from .activities.activities_state import build_activities_state, BuildConfig, DeletionConfig, MappingConfig, IncrementalConfig
+
     store = DuckDbStore(paths.duckdb_path)
     store.init_schema()
 
-    progress.emit("activities_state", "start", "Loading snapshots & building activities_state",
-                  extra={"snapshot_file": str(snap_path), "db": str(paths.duckdb_path)})
+    progress.emit(
+        "activities_state",
+        "start",
+        "Loading snapshots & building activities_state",
+        extra={"snapshot_file": str(snap_path), "db": str(paths.duckdb_path)},
+    )
     logger.info("[activities_state] start snapshot=%s", snap_path)
 
+    # Loader – wybierz właściwy (w dumpie masz oba symbole; trzymamy jeden, względny)
+    from .activities.snapshots_load import load_plum_snapshot_file_into_duckdb
+
+    # KONFIG: na razie minimalny default (bo AppConfig jest płaski)
+    # Docelowo: wczytać z YAML sekcję build_activities_state (dict) i zmapować.
+    build_cfg = BuildConfig(
+        deletion=DeletionConfig(
+            delete_operations=["DELETE"],
+            delete_tech_keys=[],
+            delete_activity_labels_regex=[],
+            disappearance_grace_period_days=14,
+            min_missing_snapshots_to_confirm=2,
+            deleted_at_policy="first_missing",
+        ),
+        mapping=MappingConfig(
+            use_activity_id_map_table=True,
+            allow_fuzzy_name_type_match=False,
+        ),
+        incremental=IncrementalConfig(
+            checkpoint_table="raw.pipeline_checkpoints",
+            checkpoint_key="build_activities_state",
+            process_only_new_snapshots=True,
+            process_only_new_events=True,
+        ),
+    )
+
     with store.connect() as con:
-        # 1) load snapshot do raw.activities_snapshot (idempotent)
-        #    UWAGA: tu wywołaj loader dopasowany do formatu PL (Nazwa kursu/ID aktywności/...)
         load_stats = load_plum_snapshot_file_into_duckdb(con, snap_path)
         progress.emit("activities_state", "snapshots_loaded", "Snapshots loaded", extra=load_stats)
-
-        # 2) build state (MERGE do mart.activities_state + QA + view)
-        bcfg = cfg.build_activities_state  # zależy jak masz config model; jeśli to dict -> cfg["build_activities_state"]
-        build_cfg = BuildConfig(
-            deletion=DeletionConfig(
-                delete_operations=["DELETE"],  # bo u Ciebie zawsze DELETE
-                delete_tech_keys=[],
-                delete_activity_labels_regex=[],
-                disappearance_grace_period_days=int(bcfg.deletion.disappearance_grace_period_days),
-                min_missing_snapshots_to_confirm=int(bcfg.deletion.min_missing_snapshots_to_confirm),
-                deleted_at_policy="first_missing",
-            ),
-            mapping=MappingConfig(
-                use_activity_id_map_table=True,
-                allow_fuzzy_name_type_match=False,
-            ),
-            incremental=IncrementalConfig(
-                checkpoint_table="raw.pipeline_checkpoints",
-                checkpoint_key="build_activities_state",
-                process_only_new_snapshots=True,
-                process_only_new_events=True,
-            ),
-        )
 
         stats = build_activities_state(con, build_cfg)
 
     progress.emit("activities_state", "done", "Activities state built", extra=stats)
     _write_marker(paths, "activities_state")
     logger.info("[activities_state] done %s", stats)
+    raise typer.Exit(code=EC_OK)
 
-import typer
-from pathlib import Path
-from mrna_plum.stats.compute_stats import compute_stats
-
-app = typer.Typer()
 
 @app.command("compute-stats")
-def compute_stats_cmd(
-    root: Path = typer.Option(..., "--root", exists=True, file_okay=False, dir_okay=True),
+@_main_guard
+def cmd_compute_stats(
+    root: str = typer.Option(..., "--root"),
     ay: str | None = typer.Option(None, "--ay"),
     term: str | None = typer.Option(None, "--term"),
+    config: str | None = typer.Option(None, "--config"),
 ):
-    compute_stats(root=root, ay=ay, term=term)
+    """
+    Ujednolicone compute-stats: wywołuje stats.compute_stats(root, ay, term).
+    (Zgodnie z realną sygnaturą w Twoim repo.)
+    """
+    root_p = _resolve_root(root)
+    _ = _resolve_config(root_p, config)  # zostawiamy na przyszłość (gdy compute-stats zacznie używać cfg)
+    paths = ProjectPaths(root=root_p)
+    _ensure_dirs(paths)
 
-import typer
-import duckdb
-from pathlib import Path
+    logger = setup_file_logger(paths.run_dir / "run.log")
+    progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
-from mrna_plum.reports.export_excel import export_summary_excel, EXIT_OVERFLOW, ExportOverflowError
+    progress.emit("stats", "start", "Computing stats", extra={"ay": ay, "term": term})
+    logger.info("[stats] start ay=%s term=%s", ay, term)
 
-app = typer.Typer()
+    from .stats.compute_stats import compute_stats
+
+    compute_stats(root=root_p, ay=ay, term=term)
+
+    progress.emit("stats", "done", "Stats computed", extra={"ay": ay, "term": term})
+    _write_marker(paths, "stats")
+    logger.info("[stats] done")
+    raise typer.Exit(code=EC_OK)
+
 
 @app.command("export-excel")
-def export_excel_cmd(
-    root: str = typer.Option(..., "--root", help="Root katalog pipeline (ma mieć _run i _out)"),
-    db_path: str = typer.Option(None, "--db-path", help="Ścieżka do DuckDB; jeśli brak, weź z config"),
-    config_path: str = typer.Option(None, "--config", help="Opcjonalnie: config.yaml"),
+@_main_guard
+def cmd_export_excel(
+    root: str = typer.Option(..., "--root"),
+    db_path: str | None = typer.Option(None, "--db-path", help="Override ścieżki do DuckDB; default z ProjectPaths"),
+    config: str | None = typer.Option(None, "--config"),
 ):
-    # TODO: wpiąć w Wasz loader configa (tu minimalny szkic)
-    cfg = {
-        "root": root,
-        "report": {"ay": "UNKNOWN_AY", "term": "UNKNOWN_TERM"},
-        "export": {"max_rows_excel": 1_000_000, "overflow_strategy": "error"},
-    }
+    """
+    Eksport agregatów do Excela (docelowo: export_summary_excel).
+    """
+    root_p = _resolve_root(root)
+    cfg_p = _resolve_config(root_p, config)
+    paths = ProjectPaths(root=root_p)
+    _ensure_dirs(paths)
 
-    # jeśli masz loader yaml -> tutaj go użyj i nadpisz cfg
+    logger = setup_file_logger(paths.run_dir / "run.log")
+    progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
-    # db path: preferuj config
-    db = db_path or cfg.get("paths", {}).get("db_path")
-    if not db:
-        raise typer.BadParameter("Brak --db-path i brak paths.db_path w config")
+    cfg = load_config(cfg_p)
 
-    con = duckdb.connect(db)
+    db = Path(db_path).resolve() if db_path else paths.duckdb_path
 
+    progress.emit("export_excel", "start", "Exporting Excel report", extra={"db": str(db)})
+    logger.info("[export_excel] start db=%s", db)
+
+    import duckdb
+    from .reports.export_excel import export_summary_excel, ExportOverflowError, EXIT_OVERFLOW
+
+    con = duckdb.connect(str(db))
     try:
-        code, out_path = export_summary_excel(con, cfg)
-        raise typer.Exit(code)
+        code, out_path = export_summary_excel(con, cfg)  # cfg w Twoim repo jest dict-like
     except ExportOverflowError:
-        raise typer.Exit(EXIT_OVERFLOW)
+        raise typer.Exit(code=EXIT_OVERFLOW)
+    finally:
+        con.close()
+
+    progress.emit("export_excel", "done", "Excel exported", extra={"out": str(out_path)})
+    _write_marker(paths, "export_excel")
+    logger.info("[export_excel] done out=%s", out_path)
+    raise typer.Exit(code=code)
+
+
+@app.command("export-individual")
+@_main_guard
+def cmd_export_individual(
+    root: str = typer.Option(..., "--root"),
+    config: str | None = typer.Option(None, "--config"),
+    out_dir: str | None = typer.Option(None, "--out-dir", help="Override folderu wyjściowego na XLSX"),
+):
+    """
+    Eksport paczek indywidualnych.
+    UWAGA: funkcja eksportu może mieć inną nazwę w Twoim repo – import jest lazy.
+    """
+    root_p = _resolve_root(root)
+    cfg_p = _resolve_config(root_p, config)
+    paths = ProjectPaths(root=root_p)
+    _ensure_dirs(paths)
+     # Docelowy folder wyjściowy (VBA oczekuje _out\\indywidualne)
+    if out_dir:
+        out_dir_p = Path(out_dir).expanduser().resolve()
+        out_dir_p.mkdir(parents=True, exist_ok=True)
+    else:
+        out_dir_p = paths.out_dir / "indywidualne"
+        out_dir_p.mkdir(parents=True, exist_ok=True)
+
+    logger = setup_file_logger(paths.run_dir / "run.log")
+    progress = ProgressWriter(paths.run_dir / "progress.jsonl")
+
+    cfg = load_config(cfg_p)
+    if out_dir:
+        od = Path(out_dir).expanduser()
+        if isinstance(cfg, dict):
+            cfg.setdefault("reports", {})
+            cfg["reports"]["individual_dir"] = str(od)
+        else:
+            # zakładamy, że cfg.reports istnieje w modelu config
+            if getattr(cfg, "reports", None) is not None:
+                setattr(cfg.reports, "individual_dir", str(od))
+
+    progress.emit("export_individual", "start", "Exporting individual reports")
+    logger.info("[export_individual] start")
+
+    # Dopasuj do realnej funkcji w reports/export_individual.py:
+    # w dumpie było `export_individual_reports(con, cfg)` — więc tak próbujemy.
+    import duckdb
+    db = paths.duckdb_path
+    con = duckdb.connect(str(db))
+    try:
+        from .reports.export_individual import export_individual_reports
+        code, out_dir = export_individual_reports(con, cfg, out_dir=out_dir_p)
+    finally:
+        con.close()
+
+    progress.emit("export_individual", "done", "Individual reports exported", extra={"out_dir": str(out_dir)})
+    _write_marker(paths, "export_individual")
+    logger.info("[export_individual] done out_dir=%s", out_dir)
+    raise typer.Exit(code=code)

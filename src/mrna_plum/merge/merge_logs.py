@@ -33,6 +33,10 @@ _TIME_FORMATS = (
     # PL
     "%d.%m.%Y %H:%M:%S",
     "%d.%m.%Y %H:%M",
+
+    # Moodle/PLUM (częsty eksport): 6-11-25, 15:34:53
+    "%d-%m-%y, %H:%M:%S",
+    "%d-%m-%y, %H:%M",
 )
 
 
@@ -136,8 +140,8 @@ def _normalize_fields_key(fields: List[str]) -> str:
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()
 
 
-def iter_log_files(root: Path) -> Iterator[Path]:
-    for p in root.rglob("*.csv"):
+def iter_log_files(root: Path, pattern: str = "*.csv") -> Iterator[Path]:
+    for p in root.rglob(pattern):
         if p.is_file():
             yield p
 
@@ -249,6 +253,10 @@ def _merge_logs_into_duckdb_impl(
     """
     try:
         grouped = group_logs_by_course(root)
+        if not grouped:
+            raise RuntimeError(
+                f"No log files matched pattern logs_<COURSE>_<YYYYMMDD-HHMM>.csv under root={root}"
+            )
         total_files = sum(len(v) for v in grouped.values())
         total_inserted = 0
 

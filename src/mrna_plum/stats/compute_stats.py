@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from logging import root
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional, Sequence
@@ -10,6 +11,9 @@ import duckdb
 import pandas as pd
 import yaml
 
+from mrna_plum import paths
+from ..errors import ConfigError
+from ..paths import ProjectPaths
 
 # ----------------------------
 # Helpers / config
@@ -181,7 +185,8 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
     cfg = _load_config(root)
 
     # minimalne oczekiwane ścieżki (dopasuj do Twojego config-a)
-    duckdb_path = _resolve_path(root, cfg.get("duckdb_path") or cfg.get("warehouse", {}).get("duckdb_path") or "_run/warehouse.duckdb")
+    paths = ProjectPaths(root=root)
+    duckdb_path = _resolve_path(root, cfg.get("duckdb_path") or cfg.get("warehouse", {}).get("duckdb_path") or str(paths.duckdb_path))
     run_dir = _resolve_path(root, cfg.get("run_dir") or "_run") or (root / "_run")
 
     aggregation = cfg.get("aggregation", {}) or {}
@@ -197,7 +202,9 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
     ay_eff = ay or cfg.get("period", {}).get("ay")
     term_eff = term or cfg.get("period", {}).get("term")
     if not rebuild_full and (not ay_eff or not term_eff):
-        raise ValueError("Brak ay/term. Ustaw period.ay + period.term w config.yaml albo podaj w CLI, albo włącz rebuild_full=true.")
+        raise ConfigError(
+            "Brak ay/term. Ustaw period.ay + period.term w config.yaml albo podaj w CLI, albo włącz rebuild_full=true."
+        )
 
     sc = StatsConfig(
         duckdb_path=duckdb_path,
