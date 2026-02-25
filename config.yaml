@@ -14,6 +14,19 @@ paths:
   pdf_dir: "D:/RNA/_out/pdf"
   excel_template: "D:/RNA/templates/wzor_raportu.xlsx"
 
+csv:
+  input_glob: "**/*.csv"
+  keys_workbook: "mRNA_PLUM_Form.xlsx"
+  keys_sheet: "KEYS"
+  col_time: "Czas"
+  col_context: "Kontekst zdarzenia"
+  col_desc: "Opis"
+  col_component: "Składnik"
+  col_event_name: "Nazwa zdarzenia"
+  course_regex: "Kurs:\\s*([^\\s]+)"
+  period_regex: "(\\d{4}/\\d{2}[zl])"
+  chunk_rows: 200000
+
 inputs:
   # opcjonalne
   teachers_xlsx: "D:/RNA/dane/Dane_NA.xlsx"          # kolumny: ID_PLUM, Pełna nazwa, ...
