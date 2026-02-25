@@ -2,9 +2,9 @@ from __future__ import annotations
 from pathlib import Path
 import pandas as pd
 
-from ..config import AppConfig
-from ..errors import MixedPeriodsError, ProcessingError
-from ..rules.engine import match_best_rule
+from mrna_plum.config import AppConfig
+from mrna_plum.errors import MixedPeriodsError, ProcessingError
+from mrna_plum.rules.engine import match_best_rule
 from .context import parse_context
 
 def parse_merged_parquet(

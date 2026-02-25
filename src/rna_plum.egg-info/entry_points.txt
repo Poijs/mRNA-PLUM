@@ -1,0 +1,2 @@
+[console_scripts]
+rna_plum = rna_plum.cli:app

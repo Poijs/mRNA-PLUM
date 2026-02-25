@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 
 import yaml
 
-from .errors import ConfigError
+from mrna_plum.errors import ConfigError
 
 
 # ---------------------------------------------------------------------------

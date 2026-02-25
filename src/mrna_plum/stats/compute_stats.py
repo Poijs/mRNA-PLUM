@@ -12,8 +12,8 @@ import pandas as pd
 import yaml
 
 from mrna_plum import paths
-from ..errors import ConfigError
-from ..paths import ProjectPaths
+from mrna_plum.errors import ConfigError
+from mrna_plum.paths import ProjectPaths
 
 # ----------------------------
 # Helpers / config

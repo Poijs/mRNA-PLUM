@@ -5,11 +5,11 @@ from typing import Optional, Callable, Any
 
 import typer
 
-from .paths import ProjectPaths
-from .config import load_config
-from .logging_run import setup_file_logger
-from .ui_bridge import ProgressWriter
-from .errors import ConfigError, InputDataError, MixedPeriodsError, ProcessingError
+from mrna_plum.paths import ProjectPaths
+from mrna_plum.config import load_config
+from mrna_plum.logging_run import setup_file_logger
+from mrna_plum.ui_bridge import ProgressWriter
+from mrna_plum.errors import ConfigError, InputDataError, MixedPeriodsError, ProcessingError
 
 # NEW: autodetekcja INPUTS_DIR
 from .inputs.autodetect import find_inputs, InputValidationError
