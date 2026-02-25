@@ -388,12 +388,20 @@ def cmd_parse_events(
 @app.command("build-activities-state")
 @_main_guard
 def cmd_build_activities_state(
-    root: str = typer.Option(..., "--root"),
-    config: str | None = typer.Option(None, "--config"),
+    root: str = typer.Option(..., "--root", help="Root projektu"),
+    config: str | None = typer.Option(None, "--config", help="config.yaml; default {root}/config.yaml"),
     # NEW: INPUTS_DIR
-    inputs_dir: str | None = typer.Option(None, "--inputs-dir", help="Folder INPUTS_DIR (autodetekcja plików HR/roster/snapshot)"),
+    inputs_dir: str | None = typer.Option(
+        None,
+        "--inputs-dir",
+        help="Folder INPUTS_DIR (autodetekcja plików HR/roster/snapshot)",
+    ),
     # CHANGED: snapshot-file optional (override)
-    snapshot_file: str | None = typer.Option(None, "--snapshot-file", help="Override: CSV '*_zawartosc_kursow.csv' (jeśli nie używasz inputs-dir)"),
+    snapshot_file: str | None = typer.Option(
+        None,
+        "--snapshot-file",
+        help="Override: CSV '*_zawartosc_kursow.csv' (jeśli nie używasz inputs-dir)",
+    ),
 ):
     """
     Pipeline B: snapshot CSV → raw.activities_snapshot → mart.activities_state
@@ -408,7 +416,7 @@ def cmd_build_activities_state(
 
     cfg = load_config(cfg_p)
 
-    # --- NEW: resolve snapshot path (override -> autodetect) ---
+    # --- resolve snapshot path (override -> autodetect) ---
     snap_path: Path | None = None
 
     if snapshot_file:
@@ -427,7 +435,7 @@ def cmd_build_activities_state(
             # snapshot krytyczny dla tego kroku
             snap_path = inputs.snapshot_csv
 
-            # HR/roster opcjonalne: loguj warningi (tu tylko informacyjnie)
+            # HR/roster opcjonalne: loguj warningi
             if not inputs.teachers_csv:
                 progress.emit("inputs", "warning", "HR file missing (dane_do_raportu.csv) - HR fields will be '-'")
             if not inputs.roster_csv:
