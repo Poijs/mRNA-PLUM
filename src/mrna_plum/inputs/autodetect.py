@@ -9,7 +9,46 @@ from mrna_plum.io.csv_read import read_csv_safely
 
 class InputValidationError(RuntimeError):
     pass
+@dataclass(frozen=True)
+class DetectedInputs:
+    teachers_csv: Optional[Path] = None
+    roster_csv: Optional[Path] = None
+    snapshot_csv: Optional[Path] = None
 
+
+def _pick_latest(paths: list[Path]) -> Optional[Path]:
+    if not paths:
+        return None
+    return max(paths, key=lambda p: p.stat().st_mtime)
+
+
+def find_inputs(inputs_dir: Path) -> DetectedInputs:
+    """
+    Autodetekcja plików metryczki w folderze (rekurencyjnie).
+    Szukamy po fragmencie nazwy (case-insensitive):
+      - teachers/hr: 'nauczyciel' lub 'hr'
+      - roster/uczestnicy: 'uczestnik', 'roster', 'enrol', 'zapisani'
+      - snapshot/zawartosc kursow: 'zawartosc_kurs', 'snapshot', 'aktywno'
+    """
+    base = Path(inputs_dir).expanduser().resolve()
+    if not base.exists() or not base.is_dir():
+        raise InputValidationError(f"inputs_dir not found or not a folder: {base}")
+
+    csvs = list(base.rglob("*.csv"))
+
+    def has_any(p: Path, keys: Tuple[str, ...]) -> bool:
+        n = p.name.lower()
+        return any(k in n for k in keys)
+
+    teachers = [p for p in csvs if has_any(p, ("nauczyciel", "teachers", "hr"))]
+    roster = [p for p in csvs if has_any(p, ("uczestnik", "roster", "enrol", "enroll", "zapisani"))]
+    snapshot = [p for p in csvs if has_any(p, ("zawartosc_kurs", "snapshot", "aktywno"))]
+
+    return DetectedInputs(
+        teachers_csv=_pick_latest(teachers),
+        roster_csv=_pick_latest(roster),
+        snapshot_csv=_pick_latest(snapshot),
+    )
 
 def _norm(s: str) -> str:
     # Normalizacja "odporna": małe litery, bez cudzysłowów, spacje->underscore
