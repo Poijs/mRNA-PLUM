@@ -12,7 +12,7 @@ from mrna_plum.ui_bridge import ProgressWriter
 from mrna_plum.errors import ConfigError, InputDataError, MixedPeriodsError, ProcessingError
 
 # NEW: autodetekcja INPUTS_DIR
-from .inputs.autodetect import find_inputs, InputValidationError
+from mrna_plum.inputs.autodetect import find_inputs, InputValidationError
 
 app = typer.Typer(add_completion=False)
 
