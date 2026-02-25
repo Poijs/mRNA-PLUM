@@ -11,6 +11,9 @@ from .logging_run import setup_file_logger
 from .ui_bridge import ProgressWriter
 from .errors import ConfigError, InputDataError, MixedPeriodsError, ProcessingError
 
+# NEW: autodetekcja INPUTS_DIR
+from .inputs.autodetect import find_inputs, InputValidationError
+
 app = typer.Typer(add_completion=False)
 
 # Exit codes (wg ustaleń)
@@ -78,6 +81,90 @@ def _main_guard(fn: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
+# -------- NEW: INPUTS_DIR helpers --------
+def _resolve_inputs_dir(root: Path, cfg: Any, inputs_dir_opt: str | None) -> Path | None:
+    """
+    Priorytet:
+    1) CLI --inputs-dir
+    2) config.yaml: inputs.inputs_dir (jeśli istnieje)
+    """
+    if inputs_dir_opt:
+        return Path(inputs_dir_opt).expanduser().resolve()
+
+    v = None
+    try:
+        if isinstance(cfg, dict):
+            v = (cfg.get("inputs") or {}).get("inputs_dir")
+        else:
+            # jeśli kiedyś inputs będzie atrybutem
+            v = getattr(getattr(cfg, "inputs", None), "inputs_dir", None)
+            # Twoja konfiguracja używa często cfg._data jako słownik
+            if v is None and hasattr(cfg, "_data"):
+                inputs_sec = cfg._data.get("inputs") or {}  # type: ignore[attr-defined]
+                if isinstance(inputs_sec, dict):
+                    v = inputs_sec.get("inputs_dir")
+    except Exception:
+        v = None
+
+    if not v:
+        return None
+
+    p = Path(str(v)).expanduser()
+    if not p.is_absolute():
+        p = (root / p).resolve()
+    else:
+        p = p.resolve()
+    return p
+
+
+def _emit_inputs_detected(progress: ProgressWriter, inputs: Any) -> None:
+    progress.emit(
+        "inputs",
+        "detected",
+        "Inputs autodetected",
+        extra={
+            "inputs_dir": str(inputs.inputs_dir),
+            "teachers_csv": str(inputs.teachers_csv) if getattr(inputs, "teachers_csv", None) else None,
+            "roster_csv": str(inputs.roster_csv) if getattr(inputs, "roster_csv", None) else None,
+            "snapshot_csv": str(inputs.snapshot_csv) if getattr(inputs, "snapshot_csv", None) else None,
+            # opcjonalne mapowania (jeśli find_inputs je zwraca)
+            "teachers_map": getattr(inputs, "teachers_map", None),
+            "roster_map": getattr(inputs, "roster_map", None),
+            "snapshot_map": getattr(inputs, "snapshot_map", None),
+        },
+    )
+
+
+def _inject_inputs_into_cfg(cfg: Any, teachers_csv: str | None, roster_csv: str | None, snapshot_csv: str | None = None) -> None:
+    """
+    Wstrzykuje wykryte pliki do cfg:
+      cfg.inputs.teachers_csv / cfg.inputs.roster_csv / cfg.inputs.snapshot_csv
+    Obsługuje cfg jako dict lub obiekt z _data.
+    """
+    if isinstance(cfg, dict):
+        cfg.setdefault("inputs", {})
+        if not isinstance(cfg["inputs"], dict):
+            cfg["inputs"] = {}
+        cfg["inputs"]["teachers_csv"] = teachers_csv
+        cfg["inputs"]["roster_csv"] = roster_csv
+        cfg["inputs"]["snapshot_csv"] = snapshot_csv
+        return
+
+    if hasattr(cfg, "_data"):
+        cfg._data.setdefault("inputs", {})  # type: ignore[attr-defined]
+        if not isinstance(cfg._data["inputs"], dict):  # type: ignore[attr-defined]
+            cfg._data["inputs"] = {}  # type: ignore[attr-defined]
+        cfg._data["inputs"]["teachers_csv"] = teachers_csv  # type: ignore[attr-defined]
+        cfg._data["inputs"]["roster_csv"] = roster_csv  # type: ignore[attr-defined]
+        cfg._data["inputs"]["snapshot_csv"] = snapshot_csv  # type: ignore[attr-defined]
+        return
+
+    # fallback: dynamic attrs (ostatnia deska ratunku)
+    setattr(cfg, "inputs_teachers_csv", teachers_csv)
+    setattr(cfg, "inputs_roster_csv", roster_csv)
+    setattr(cfg, "inputs_snapshot_csv", snapshot_csv)
+
+
 # -------------------------
 # Commands
 # -------------------------
@@ -139,8 +226,14 @@ def cmd_merge_logs(
     if not input_files:
         raise InputDataError(f"No input files found under {root_p} with glob {cfg.input_glob}")
 
-    progress.emit("merge", "start", f"Starting merge ({mode})", current=0, total=len(input_files),
-                  extra={"root": str(root_p), "mode": mode})
+    progress.emit(
+        "merge",
+        "start",
+        f"Starting merge ({mode})",
+        current=0,
+        total=len(input_files),
+        extra={"root": str(root_p), "mode": mode},
+    )
     logger.info("[merge] start mode=%s files=%s", mode, len(input_files))
 
     if mode == "parquet":
@@ -150,18 +243,22 @@ def cmd_merge_logs(
         merged_parquet = paths.parquet_dir / "merged_raw.parquet"
         total_rows = merge_logs_to_parquet(input_files, merged_parquet, dedup_per_file=True)
 
-        progress.emit("merge", "done", "Merge finished", current=len(input_files), total=len(input_files),
-                      extra={"rows": total_rows, "parquet": str(merged_parquet)})
+        progress.emit(
+            "merge",
+            "done",
+            "Merge finished",
+            current=len(input_files),
+            total=len(input_files),
+            extra={"rows": total_rows, "parquet": str(merged_parquet)},
+        )
         _write_marker(paths, "merge")
         logger.info("[merge] done rows=%s parquet=%s", total_rows, merged_parquet)
         raise typer.Exit(code=EC_OK)
 
-    # mode == duckdb → pipeline B (używamy funkcji merge_logs_into_duckdb)
-    # Importy absolutne usuwamy — wszystko względnie
+    # mode == duckdb → pipeline B
     from .store.duckdb_store import open_store
     from .merge.merge_logs import merge_logs_into_duckdb
 
-    # db_path: preferuj ProjectPaths
     db_path = paths.duckdb_path
     con = open_store(db_path)
     try:
@@ -175,8 +272,18 @@ def cmd_merge_logs(
     finally:
         con.close()
 
-    progress.emit("merge", "done", "Merge finished (duckdb)", current=len(input_files), total=len(input_files),
-                  extra={"db": str(db_path), "courses": getattr(res, "courses", None), "inserted_rows": getattr(res, "inserted_rows", None)})
+    progress.emit(
+        "merge",
+        "done",
+        "Merge finished (duckdb)",
+        current=len(input_files),
+        total=len(input_files),
+        extra={
+            "db": str(db_path),
+            "courses": getattr(res, "courses", None),
+            "inserted_rows": getattr(res, "inserted_rows", None),
+        },
+    )
     _write_marker(paths, "merge")
     logger.info("[merge] done duckdb db=%s res=%s", db_path, res)
     raise typer.Exit(code=EC_OK)
@@ -211,7 +318,9 @@ def cmd_build_db(
 
     merged_parquet = paths.parquet_dir / "merged_raw.parquet"
     if not merged_parquet.exists():
-        raise InputDataError(f"Missing merged parquet. Run: mrna_plum merge-logs --mode parquet --root ...  Expected: {merged_parquet}")
+        raise InputDataError(
+            f"Missing merged parquet. Run: mrna_plum merge-logs --mode parquet --root ...  Expected: {merged_parquet}"
+        )
 
     progress.emit("parse", "start", "Parsing merged logs & applying rules")
     logger.info("[parse] start rules=%s", len(rules))
@@ -256,11 +365,14 @@ def cmd_parse_events(
 
     cfg = load_config(cfg_p)
 
-    progress.emit("parse_events", "start", "Parsing events into events_canonical",
-                  extra={"db": str(paths.duckdb_path), "keys_xlsx": keys_xlsx})
+    progress.emit(
+        "parse_events",
+        "start",
+        "Parsing events into events_canonical",
+        extra={"db": str(paths.duckdb_path), "keys_xlsx": keys_xlsx},
+    )
     logger.info("[parse_events] start db=%s", paths.duckdb_path)
 
-    # run_parse_events jest w Twoim dumpie importowany absolutnie — tu robimy względnie + lazy
     from .parse.parse_events import run_parse_events
 
     exit_code = run_parse_events(cfg, root=str(root_p), keys_xlsx_override=keys_xlsx)
@@ -278,7 +390,10 @@ def cmd_parse_events(
 def cmd_build_activities_state(
     root: str = typer.Option(..., "--root"),
     config: str | None = typer.Option(None, "--config"),
-    snapshot_file: str = typer.Option(..., "--snapshot-file", help="CSV 'zawartość kursów' wybrany w VBA"),
+    # NEW: INPUTS_DIR
+    inputs_dir: str | None = typer.Option(None, "--inputs-dir", help="Folder INPUTS_DIR (autodetekcja plików HR/roster/snapshot)"),
+    # CHANGED: snapshot-file optional (override)
+    snapshot_file: str | None = typer.Option(None, "--snapshot-file", help="Override: CSV '*_zawartosc_kursow.csv' (jeśli nie używasz inputs-dir)"),
 ):
     """
     Pipeline B: snapshot CSV → raw.activities_snapshot → mart.activities_state
@@ -293,12 +408,52 @@ def cmd_build_activities_state(
 
     cfg = load_config(cfg_p)
 
-    snap_path = Path(snapshot_file).resolve()
-    if not snap_path.exists():
-        raise InputDataError(f"Snapshot file not found: {snap_path}")
+    # --- NEW: resolve snapshot path (override -> autodetect) ---
+    snap_path: Path | None = None
+
+    if snapshot_file:
+        snap_path = Path(snapshot_file).expanduser().resolve()
+    else:
+        in_dir = _resolve_inputs_dir(root_p, cfg, inputs_dir)
+        if in_dir:
+            try:
+                inputs = find_inputs(in_dir)
+            except InputValidationError as e:
+                progress.emit("inputs", "error", "Inputs autodetect failed", extra={"error": str(e)})
+                raise InputDataError(str(e))
+
+            _emit_inputs_detected(progress, inputs)
+
+            # snapshot krytyczny dla tego kroku
+            snap_path = inputs.snapshot_csv
+
+            # HR/roster opcjonalne: loguj warningi (tu tylko informacyjnie)
+            if not inputs.teachers_csv:
+                progress.emit("inputs", "warning", "HR file missing (dane_do_raportu.csv) - HR fields will be '-'")
+            if not inputs.roster_csv:
+                progress.emit("inputs", "warning", "Roster missing (*_raport_uczestnikow.csv) - students_enrolled will be '-'")
+
+            # wstrzyknij do cfg (żeby dalsze kroki mogły korzystać)
+            _inject_inputs_into_cfg(
+                cfg,
+                teachers_csv=str(inputs.teachers_csv) if inputs.teachers_csv else None,
+                roster_csv=str(inputs.roster_csv) if inputs.roster_csv else None,
+                snapshot_csv=str(inputs.snapshot_csv) if inputs.snapshot_csv else None,
+            )
+
+    if not snap_path or not snap_path.exists():
+        msg = "Missing snapshot CSV. Provide --snapshot-file or --inputs-dir with a file '*_zawartosc_kursow.csv'."
+        progress.emit("inputs", "error", msg, extra={"snapshot_file": str(snap_path) if snap_path else None})
+        raise InputDataError(msg)
 
     from .store import DuckDbStore
-    from .activities.activities_state import build_activities_state, BuildConfig, DeletionConfig, MappingConfig, IncrementalConfig
+    from .activities.activities_state import (
+        build_activities_state,
+        BuildConfig,
+        DeletionConfig,
+        MappingConfig,
+        IncrementalConfig,
+    )
 
     store = DuckDbStore(paths.duckdb_path)
     store.init_schema()
@@ -311,11 +466,9 @@ def cmd_build_activities_state(
     )
     logger.info("[activities_state] start snapshot=%s", snap_path)
 
-    # Loader – wybierz właściwy (w dumpie masz oba symbole; trzymamy jeden, względny)
     from .activities.snapshots_load import load_plum_snapshot_file_into_duckdb
 
-    # KONFIG: na razie minimalny default (bo AppConfig jest płaski)
-    # Docelowo: wczytać z YAML sekcję build_activities_state (dict) i zmapować.
+    # KONFIG: minimalny default
     build_cfg = BuildConfig(
         deletion=DeletionConfig(
             delete_operations=["DELETE"],
@@ -359,10 +512,9 @@ def cmd_compute_stats(
 ):
     """
     Ujednolicone compute-stats: wywołuje stats.compute_stats(root, ay, term).
-    (Zgodnie z realną sygnaturą w Twoim repo.)
     """
     root_p = _resolve_root(root)
-    _ = _resolve_config(root_p, config)  # zostawiamy na przyszłość (gdy compute-stats zacznie używać cfg)
+    _ = _resolve_config(root_p, config)  # na przyszłość
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
@@ -388,6 +540,8 @@ def cmd_export_excel(
     root: str = typer.Option(..., "--root"),
     db_path: str | None = typer.Option(None, "--db-path", help="Override ścieżki do DuckDB; default z ProjectPaths"),
     config: str | None = typer.Option(None, "--config"),
+    # NEW: INPUTS_DIR (opcjonalne, ale przydatne do metryczki/roster w raportach)
+    inputs_dir: str | None = typer.Option(None, "--inputs-dir", help="Folder INPUTS_DIR (autodetekcja HR/roster)"),
 ):
     """
     Eksport agregatów do Excela (docelowo: export_summary_excel).
@@ -401,6 +555,29 @@ def cmd_export_excel(
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
+
+    # NEW: autodetekcja HR/roster (opcjonalne)
+    in_dir = _resolve_inputs_dir(root_p, cfg, inputs_dir)
+    if in_dir:
+        try:
+            inputs = find_inputs(in_dir)
+        except InputValidationError as e:
+            progress.emit("inputs", "error", "Inputs autodetect failed", extra={"error": str(e)})
+            raise InputDataError(str(e))
+
+        _emit_inputs_detected(progress, inputs)
+
+        if not inputs.teachers_csv:
+            progress.emit("inputs", "warning", "HR file missing (dane_do_raportu.csv) - HR fields will be '-'")
+        if not inputs.roster_csv:
+            progress.emit("inputs", "warning", "Roster missing (*_raport_uczestnikow.csv) - students_enrolled will be '-'")
+
+        _inject_inputs_into_cfg(
+            cfg,
+            teachers_csv=str(inputs.teachers_csv) if inputs.teachers_csv else None,
+            roster_csv=str(inputs.roster_csv) if inputs.roster_csv else None,
+            snapshot_csv=str(inputs.snapshot_csv) if inputs.snapshot_csv else None,
+        )
 
     db = Path(db_path).resolve() if db_path else paths.duckdb_path
 
@@ -430,52 +607,75 @@ def cmd_export_individual(
     root: str = typer.Option(..., "--root"),
     config: str | None = typer.Option(None, "--config"),
     out_dir: str | None = typer.Option(None, "--out-dir", help="Override folderu wyjściowego na XLSX"),
+    # NEW: INPUTS_DIR
+    inputs_dir: str | None = typer.Option(None, "--inputs-dir", help="Folder INPUTS_DIR (autodetekcja HR/roster/snapshot)"),
 ):
     """
     Eksport paczek indywidualnych.
-    UWAGA: funkcja eksportu może mieć inną nazwę w Twoim repo – import jest lazy.
     """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
-     # Docelowy folder wyjściowy (VBA oczekuje _out\\indywidualne)
+
+    # Ustal out_dir_p i upewnij się że istnieje
     if out_dir:
         out_dir_p = Path(out_dir).expanduser().resolve()
-        out_dir_p.mkdir(parents=True, exist_ok=True)
     else:
         out_dir_p = paths.out_dir / "indywidualne"
-        out_dir_p.mkdir(parents=True, exist_ok=True)
+    out_dir_p.mkdir(parents=True, exist_ok=True)
 
     logger = setup_file_logger(paths.run_dir / "run.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
-    if out_dir:
-        od = Path(out_dir).expanduser()
-        if isinstance(cfg, dict):
-            cfg.setdefault("reports", {})
-            cfg["reports"]["individual_dir"] = str(od)
-        else:
-            # zakładamy, że cfg.reports istnieje w modelu config
-            if getattr(cfg, "reports", None) is not None:
-                setattr(cfg.reports, "individual_dir", str(od))
 
-    progress.emit("export_individual", "start", "Exporting individual reports")
-    logger.info("[export_individual] start")
+    # NEW: autodetekcja HR/roster (opcjonalne)
+    in_dir = _resolve_inputs_dir(root_p, cfg, inputs_dir)
+    if in_dir:
+        try:
+            inputs = find_inputs(in_dir)
+        except InputValidationError as e:
+            progress.emit("inputs", "error", "Inputs autodetect failed", extra={"error": str(e)})
+            raise InputDataError(str(e))
 
-    # Dopasuj do realnej funkcji w reports/export_individual.py:
-    # w dumpie było `export_individual_reports(con, cfg)` — więc tak próbujemy.
-    import duckdb
+        _emit_inputs_detected(progress, inputs)
+
+        if not inputs.teachers_csv:
+            progress.emit("inputs", "warning", "HR file missing (dane_do_raportu.csv) - HR fields will be '-'")
+        if not inputs.roster_csv:
+            progress.emit("inputs", "warning", "Roster missing (*_raport_uczestnikow.csv) - students_enrolled will be '-'")
+
+        _inject_inputs_into_cfg(
+            cfg,
+            teachers_csv=str(inputs.teachers_csv) if inputs.teachers_csv else None,
+            roster_csv=str(inputs.roster_csv) if inputs.roster_csv else None,
+            snapshot_csv=str(inputs.snapshot_csv) if inputs.snapshot_csv else None,
+        )
+
+    # Wstrzyknij out_dir do cfg (tak jak było)
+    if isinstance(cfg, dict):
+        cfg.setdefault("reports", {})
+        cfg["reports"]["individual_dir"] = str(out_dir_p)
+    else:
+        cfg._data.setdefault("reports", {})  # type: ignore[attr-defined]
+        if not isinstance(cfg._data["reports"], dict):  # type: ignore[attr-defined]
+            cfg._data["reports"] = {}  # type: ignore[attr-defined]
+        cfg._data["reports"]["individual_dir"] = str(out_dir_p)  # type: ignore[attr-defined]
+
+    progress.emit("export_individual", "start", "Exporting individual reports", extra={"out_dir": str(out_dir_p)})
+    logger.info("[export_individual] start out_dir=%s", out_dir_p)
+
+    import duckdb as _duckdb
     db = paths.duckdb_path
-    con = duckdb.connect(str(db))
+    con = _duckdb.connect(str(db))
     try:
         from .reports.export_individual import export_individual_reports
-        code, out_dir = export_individual_reports(con, cfg, out_dir=out_dir_p)
+        code, result_dir = export_individual_reports(con, cfg)
     finally:
         con.close()
 
-    progress.emit("export_individual", "done", "Individual reports exported", extra={"out_dir": str(out_dir)})
+    progress.emit("export_individual", "done", "Individual reports exported", extra={"out_dir": str(result_dir)})
     _write_marker(paths, "export_individual")
-    logger.info("[export_individual] done out_dir=%s", out_dir)
+    logger.info("[export_individual] done out_dir=%s", result_dir)
     raise typer.Exit(code=code)

@@ -78,11 +78,11 @@ aggregation:
     course: ["course_key"]
     kierunek: ["kierunek"]
     wydzial: ["wydzial"]
-    uczelnia: []  # global
+    uczelnia: []
   min_count_thresholds:
-    # progi do “flagowania” a nie do kasowania
     low_activity_total: 1
     suspiciously_high_per_day: 500
+  include_deleted_in_percent: false   # <-- przeniesione z drugiej sekcji
 
 reports:
   excel:
@@ -166,9 +166,6 @@ period:
   term: "Z"   # np. Z/L
 
 rebuild_full: false
-
-aggregation:
-  include_deleted_in_percent: false
 
 stats:
   pct_round_decimals: 4
