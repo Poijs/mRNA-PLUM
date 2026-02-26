@@ -4,207 +4,69 @@ app:
   timezone: "Europe/Warsaw"
 
 paths:
-  logs_root: "D:/RNA/logs_raw"                 # folder z podfolderami kursów
-  merged_logs_out: "D:/RNA/_staging/merged"    # opcjonalnie, jeśli chcesz zachować CSV po scaleniu
-  db_path: "D:/RNA/_db/rna_plum.duckdb"
-  parquet_root: "D:/RNA/_parquet"             # partycje surowe/kanoniczne
-  output_root: "D:/RNA/_out"
-  reports_excel: "D:/RNA/_out/raport_zbiorczy.xlsx"
-  individual_reports_dir: "D:/RNA/_out/raporty_indywidualne"
-  pdf_dir: "D:/RNA/_out/pdf"
-  excel_template: "D:/RNA/templates/wzor_raportu.xlsx"
+  # POPRAWKA A: dodany db_path — parse_events tego wymaga (cfg["paths"]["db_path"])
+  # POPRAWKA A: ujednolicona ścieżka DuckDB — wcześniej compute_stats szukał "_run/warehouse.duckdb"
+  db_path: "_data/mrna_plum.duckdb"
+  parquet_root: "_data/parquet"
+  logs_root: "logi_plum"
+  merged_logs_out: "_staging/merged"
+  output_root: "_out"
+  reports_excel: "_out/raport_zbiorczy.xlsx"
+  individual_reports_dir: "_out/indywidualne"
+  pdf_dir: "_out/pdf"
+  excel_template: "wzor_raportu.xlsx"
 
 csv:
   input_glob: "**/*.csv"
-  keys_workbook: "mRNA_PLUM_Form.xlsx"
   keys_sheet: "KEYS"
   col_time: "Czas"
   col_context: "Kontekst zdarzenia"
   col_desc: "Opis"
   col_component: "Składnik"
   col_event_name: "Nazwa zdarzenia"
-  course_regex: "Kurs:\\s*([^\\s]+)"
-  period_regex: "(\\d{4}/\\d{2}[zl])"
   chunk_rows: 200000
 
-inputs:
-  # opcjonalne
-  teachers_xlsx: "D:/RNA/dane/Dane_NA.xlsx"          # kolumny: ID_PLUM, Pełna nazwa, ...
-  html_id_email: "D:/RNA/dane/ID_Email.html"         # alternatywne źródło email->ID
-  courses_meta: "D:/RNA/dane/courses_meta.xlsx"      # course_key->kierunek/wydzial
-
 ingest:
+  # Wzorzec dla plików: logs_WFDist22sem-NazwaPrzedmiotu-202425l_20250422-0855.csv
   filename_coursekey_regex: "^logs_(?P<coursekey>.+?)_\\d{8}-\\d{4}\\.csv$"
   recursive: true
   delimiter_detect: true
   encoding_detect: true
   normalize_to_utf8: true
   dedup:
-    mode: "full_row_hash"     # zgodnie z VBA: dedup tylko identyczny wiersz
+    mode: "full_row_hash"
     hash: "sha1"
-  sort:
-    by_time_column_names: ["czas","time","timecreated","data","date"]
-    newest_first: true
 
-userid_extraction:
-  # zgodne z VBA: "The user with id '7997' ..."
-  regexes:
-    - "user with id\\s*'(?P<id>\\d+)'"
-    - "id\\s*=\\s*(?P<id>\\d+)"
-  prefer_columns: ["userid","user id","ID","ID_PLUM"]  # jeśli obecne w logach
-  fallback_to_description: true
-
-filters:
-  drop_if_email_contains:
-    - "student"       # jak VBA usuwa wiersze, gdzie mail zawiera student
-  drop_if_username_contains:
-    - "student"
-  # dodatkowo: whitelist domen, jeśli potrzebne
-  allowed_email_domains: []   # np. ["umw.edu.pl"]
-  # zakres czasu (opcjonalnie)
-  date_from: null
-  date_to: null
-
-activity_mapping:
-  # "Legenda1": exact match po event_name (odpowiednik kol. D)
-  exact:
-    # raw_event_name: activity_label
-    "Course module created": "Materiały"
-    "Question created": "Pytania"
-  # "Legenda2": contains match po description (odpowiednik szukania fragmentu w M)
-  contains:
-    "mod_quiz": "Testy/Quizy"
-    "forum post": "Forum"
-  # opcjonalnie regex (najbardziej elastyczne)
-  regex:
-    - pattern: "assign(ment)?"
-      label: "Zadania"
-      flags: "i"
-      priority: 50
-
-aggregation:
-  group_keys:
-    - teacher_id
-    - course_key
-    - activity_label
-  percent_denominators:
-    course: ["course_key"]
-    kierunek: ["kierunek"]
-    wydzial: ["wydzial"]
-    uczelnia: []
-  min_count_thresholds:
-    low_activity_total: 1
-    suspiciously_high_per_day: 500
-  include_deleted_in_percent: false   # <-- przeniesione z drugiej sekcji
-
-reports:
-  excel:
-    include_qc_log: true
-    sheets:
-      zliczenie: "ZLICZENIE_AKTYWNOSCI_NA"
-      uczelnia: "PODSUM_UCZELNIA"
-      wydzial: "PODSUM_WYDZIAL"
-      kierunek: "PODSUM_KIERUNEK"
-      kurs: "PODSUM_KURS"
-      qc: "QC_LOG"
-
-  individual_xlsx:
-    sheet_courses: "DANE_KURSY"
-    sheet_person: "DANE_PERS"
-
-  pdf:
-    enabled: true
-    engine: "excel_com"        # "excel_com" (Windows) albo "libreoffice" (fallback)
-    template_fill_mode: "anchors"  # "anchors" (label->value) lub "named_ranges"
-    export_quality: "standard"
+# POPRAWKA B: usunięte {root}/ z ścieżek — kod nie interpoluje tego placeholdera
+mapping:
+  teacher_id_email: "pliki_zrodlowe/dane_do_raportu.csv"
+  email_hr: "pliki_zrodlowe/dane_do_raportu.csv"
 
 parse_events:
-  keys_xlsx: "{root}/KEYS.xlsx"   # VBA podmieni {root} lub przekaże absolutną ścieżkę
+  keys_xlsx: "KEYS.xlsx"
   keys_sheet: "KEYS"
   fetch_size: 5000
   insert_batch_size: 20000
   export_parquet: true
 
-  filters:
-    student_email_domain: "@student.umw.edu.pl"
-
-    tech_key_whitelist: []      # np. ["URL_CREATE","URL_DELETE"]
-    tech_key_blacklist: []      # np. ["FOLDER_VIEWED"]
-
-    source_whitelist: []        # np. ["web", "cli"]
-    source_blacklist: []        # np. ["cron"]
-
-    date_from: null
-    date_to: null
-
 build_activities_state:
   snapshots_dir: "_data/snapshots"
-  snapshots_glob: "*.csv"
+  snapshots_glob: "*_zawartosc_kursow.csv"
 
-  # jak interpretujemy activity_id w snapshotach:
-  activity_id_kind: "cmid"  # "cmid" | "module_id" | "unknown"
-
-  deletion:
-    delete_operations: ["DELETE"]     # jeśli operation jest standaryzowane
-    delete_tech_keys: []              # np. ["activity_delete", "mod_delete_*"] – jeśli KEYS tak steruje
-    delete_activity_labels_regex: []  # jeśli w KEYS activity_label niesie semantykę usunięcia
-    disappearance_grace_period_days: 14
-    min_missing_snapshots_to_confirm: 2
-    deleted_at_policy: "first_missing"  # "first_missing" | "last_seen"
-
-  mapping:
-    use_activity_id_map_table: true
-    allow_fuzzy_name_type_match: false
-    name_normalization:
-      lower: true
-      strip: true
-      collapse_ws: true
-      remove_diacritics: true
-      remove_punctuation: true
-
-  incremental:
-    checkpoint_table: "raw.pipeline_checkpoints"
-    checkpoint_key: "build_activities_state"
-    process_only_new_snapshots: true
-    process_only_new_events: true
-
-  qa:
-    write_all_conflicts: true
-
-duckdb_path: _run/warehouse.duckdb
-run_dir: _run
+# POPRAWKA A: ujednolicona ścieżka DuckDB (compute_stats używa tego klucza)
+duckdb_path: "_data/mrna_plum.duckdb"
+run_dir: "_run"
 
 period:
   ay: "2025/26"
-  term: "Z"   # np. Z/L
+  term: "l"
 
 rebuild_full: false
 
-stats:
-  pct_round_decimals: 4
-
-mapping:
-  teacher_id_email: data/mapping/teacher_id_email.xlsx
-
-hr:
-  file: data/hr/HR.xlsx
-  sheet: "HR"   # jeśli masz, jak nie to usuń i weź pierwszy arkusz
-  teacher_id_col: "ID_PLUM"
-  email_col: "E-mail"
-  full_name_col: "Pełna nazwa"
-  wydzial_col: "Wydział jednostki zatrudnienia"
-  jednostka_col: "Jednostka podlegajaca rozliczeniu"
-  teachers_only: true
-  passthrough_cols:
-    - "ID bazus"
-
-export:
-  activity_column: "activity_label"
-  course_column: "course_name"
-  include_hr_cols: true
-  exclude_zero_counts: true
-  percent_excel_format: true
-  max_rows_excel: 1000000
-  overflow_strategy: "error"
-
-export_individual_reports(con, cfg)
+reports:
+  excel:
+    include_qc_log: true
+  pdf:
+    enabled: true
+    engine: "excel_com"
+    template_fill_mode: "anchors"

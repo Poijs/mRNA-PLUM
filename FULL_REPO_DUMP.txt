@@ -1,5 +1,5 @@
 REPO DUMP
-Generated: 2026-02-25 14:29:01.142342
+Generated: 2026-02-26 11:42:35.365714
 Root: E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
 
 
@@ -63,21 +63,24 @@ app:
   timezone: "Europe/Warsaw"
 
 paths:
-  logs_root: "D:/RNA/logs_raw"                 # folder z podfolderami kursów
-  merged_logs_out: "D:/RNA/_staging/merged"    # opcjonalnie, jeśli chcesz zachować CSV po scaleniu
-  db_path: "D:/RNA/_db/rna_plum.duckdb"
-  parquet_root: "D:/RNA/_parquet"             # partycje surowe/kanoniczne
-  output_root: "D:/RNA/_out"
-  reports_excel: "D:/RNA/_out/raport_zbiorczy.xlsx"
-  individual_reports_dir: "D:/RNA/_out/raporty_indywidualne"
-  pdf_dir: "D:/RNA/_out/pdf"
-  excel_template: "D:/RNA/templates/wzor_raportu.xlsx"
+  logs_root: "{root}/logi_plum"
+  merged_logs_out: "{root}/_staging/merged"
+  parquet_root: "{root}/_parquet"
+  output_root: "{root}/_out"
+  reports_excel: "{root}/_out/raport_zbiorczy.xlsx"
+  individual_reports_dir: "{root}/_out/indywidualne"
+  pdf_dir: "{root}/_out/pdf"
+  excel_template: "{root}/wzor_raportu.xlsx"
 
-inputs:
-  # opcjonalne
-  teachers_xlsx: "D:/RNA/dane/Dane_NA.xlsx"          # kolumny: ID_PLUM, Pełna nazwa, ...
-  html_id_email: "D:/RNA/dane/ID_Email.html"         # alternatywne źródło email->ID
-  courses_meta: "D:/RNA/dane/courses_meta.xlsx"      # course_key->kierunek/wydzial
+csv:
+  input_glob: "**/*.csv"
+  keys_sheet: "KEYS"
+  col_time: "Czas"
+  col_context: "Kontekst zdarzenia"
+  col_desc: "Opis"
+  col_component: "Składnik"
+  col_event_name: "Nazwa zdarzenia"
+  chunk_rows: 200000
 
 ingest:
   filename_coursekey_regex: "^logs_(?P<coursekey>.+?)_\\d{8}-\\d{4}\\.csv$"
@@ -86,174 +89,86 @@ ingest:
   encoding_detect: true
   normalize_to_utf8: true
   dedup:
-    mode: "full_row_hash"     # zgodnie z VBA: dedup tylko identyczny wiersz
+    mode: "full_row_hash"
     hash: "sha1"
-  sort:
-    by_time_column_names: ["czas","time","timecreated","data","date"]
-    newest_first: true
 
-userid_extraction:
-  # zgodne z VBA: "The user with id '7997' ..."
-  regexes:
-    - "user with id\\s*'(?P<id>\\d+)'"
-    - "id\\s*=\\s*(?P<id>\\d+)"
-  prefer_columns: ["userid","user id","ID","ID_PLUM"]  # jeśli obecne w logach
-  fallback_to_description: true
-
-filters:
-  drop_if_email_contains:
-    - "student"       # jak VBA usuwa wiersze, gdzie mail zawiera student
-  drop_if_username_contains:
-    - "student"
-  # dodatkowo: whitelist domen, jeśli potrzebne
-  allowed_email_domains: []   # np. ["umw.edu.pl"]
-  # zakres czasu (opcjonalnie)
-  date_from: null
-  date_to: null
-
-activity_mapping:
-  # "Legenda1": exact match po event_name (odpowiednik kol. D)
-  exact:
-    # raw_event_name: activity_label
-    "Course module created": "Materiały"
-    "Question created": "Pytania"
-  # "Legenda2": contains match po description (odpowiednik szukania fragmentu w M)
-  contains:
-    "mod_quiz": "Testy/Quizy"
-    "forum post": "Forum"
-  # opcjonalnie regex (najbardziej elastyczne)
-  regex:
-    - pattern: "assign(ment)?"
-      label: "Zadania"
-      flags: "i"
-      priority: 50
-
-aggregation:
-  group_keys:
-    - teacher_id
-    - course_key
-    - activity_label
-  percent_denominators:
-    course: ["course_key"]
-    kierunek: ["kierunek"]
-    wydzial: ["wydzial"]
-    uczelnia: []
-  min_count_thresholds:
-    low_activity_total: 1
-    suspiciously_high_per_day: 500
-  include_deleted_in_percent: false   # <-- przeniesione z drugiej sekcji
-
-reports:
-  excel:
-    include_qc_log: true
-    sheets:
-      zliczenie: "ZLICZENIE_AKTYWNOSCI_NA"
-      uczelnia: "PODSUM_UCZELNIA"
-      wydzial: "PODSUM_WYDZIAL"
-      kierunek: "PODSUM_KIERUNEK"
-      kurs: "PODSUM_KURS"
-      qc: "QC_LOG"
-
-  individual_xlsx:
-    sheet_courses: "DANE_KURSY"
-    sheet_person: "DANE_PERS"
-
-  pdf:
-    enabled: true
-    engine: "excel_com"        # "excel_com" (Windows) albo "libreoffice" (fallback)
-    template_fill_mode: "anchors"  # "anchors" (label->value) lub "named_ranges"
-    export_quality: "standard"
+mapping:
+  teacher_id_email: "{root}/pliki_zrodlowe/dane_do_raportu.csv"
+  email_hr: "{root}/pliki_zrodlowe/dane_do_raportu.csv"
 
 parse_events:
-  keys_xlsx: "{root}/KEYS.xlsx"   # VBA podmieni {root} lub przekaże absolutną ścieżkę
+  keys_xlsx: "{root}/KEYS.xlsx"
   keys_sheet: "KEYS"
   fetch_size: 5000
   insert_batch_size: 20000
   export_parquet: true
 
-  filters:
-    student_email_domain: "@student.umw.edu.pl"
-
-    tech_key_whitelist: []      # np. ["URL_CREATE","URL_DELETE"]
-    tech_key_blacklist: []      # np. ["FOLDER_VIEWED"]
-
-    source_whitelist: []        # np. ["web", "cli"]
-    source_blacklist: []        # np. ["cron"]
-
-    date_from: null
-    date_to: null
-
 build_activities_state:
   snapshots_dir: "_data/snapshots"
-  snapshots_glob: "*.csv"
+  snapshots_glob: "*_zawartosc_kursow.csv"
 
-  # jak interpretujemy activity_id w snapshotach:
-  activity_id_kind: "cmid"  # "cmid" | "module_id" | "unknown"
-
-  deletion:
-    delete_operations: ["DELETE"]     # jeśli operation jest standaryzowane
-    delete_tech_keys: []              # np. ["activity_delete", "mod_delete_*"] – jeśli KEYS tak steruje
-    delete_activity_labels_regex: []  # jeśli w KEYS activity_label niesie semantykę usunięcia
-    disappearance_grace_period_days: 14
-    min_missing_snapshots_to_confirm: 2
-    deleted_at_policy: "first_missing"  # "first_missing" | "last_seen"
-
-  mapping:
-    use_activity_id_map_table: true
-    allow_fuzzy_name_type_match: false
-    name_normalization:
-      lower: true
-      strip: true
-      collapse_ws: true
-      remove_diacritics: true
-      remove_punctuation: true
-
-  incremental:
-    checkpoint_table: "raw.pipeline_checkpoints"
-    checkpoint_key: "build_activities_state"
-    process_only_new_snapshots: true
-    process_only_new_events: true
-
-  qa:
-    write_all_conflicts: true
-
-duckdb_path: _run/warehouse.duckdb
-run_dir: _run
+duckdb_path: "_run/warehouse.duckdb"
+run_dir: "_run"
 
 period:
   ay: "2025/26"
-  term: "Z"   # np. Z/L
+  term: "Z"
 
 rebuild_full: false
 
-stats:
-  pct_round_decimals: 4
+reports:
+  excel:
+    include_qc_log: true
+  pdf:
+    enabled: true
+    engine: "excel_com"
+    template_fill_mode: "anchors"
 
-mapping:
-  teacher_id_email: data/mapping/teacher_id_email.xlsx
+================================================================================
+dump_repo.py
+================================================================================
 
-hr:
-  file: data/hr/HR.xlsx
-  sheet: "HR"   # jeśli masz, jak nie to usuń i weź pierwszy arkusz
-  teacher_id_col: "ID_PLUM"
-  email_col: "E-mail"
-  full_name_col: "Pełna nazwa"
-  wydzial_col: "Wydział jednostki zatrudnienia"
-  jednostka_col: "Jednostka podlegajaca rozliczeniu"
-  teachers_only: true
-  passthrough_cols:
-    - "ID bazus"
+from pathlib import Path
+from datetime import datetime
 
-export:
-  activity_column: "activity_label"
-  course_column: "course_name"
-  include_hr_cols: true
-  exclude_zero_counts: true
-  percent_excel_format: true
-  max_rows_excel: 1000000
-  overflow_strategy: "error"
+ROOT = Path(".").resolve()
+OUT = ROOT / "FULL_REPO_DUMP.txt"
 
-export_individual_reports(con, cfg)
+EXCLUDE = {
+    ".git",
+    "__pycache__",
+    ".venv",
+    ".idea",
+    ".pytest_cache",
+    "dist",
+    "build"
+}
+
+def should_skip(path: Path) -> bool:
+    return any(part in EXCLUDE for part in path.parts)
+
+with OUT.open("w", encoding="utf-8") as out:
+    out.write(f"REPO DUMP\n")
+    out.write(f"Generated: {datetime.now()}\n")
+    out.write(f"Root: {ROOT}\n\n")
+
+    for path in sorted(ROOT.rglob("*")):
+        if path.is_dir():
+            continue
+        if should_skip(path):
+            continue
+        
+        out.write("\n\n" + "="*80 + "\n")
+        out.write(f"{path.relative_to(ROOT)}\n")
+        out.write("="*80 + "\n\n")
+
+        try:
+            content = path.read_text(encoding="utf-8")
+            out.write(content)
+        except Exception:
+            out.write("[BINARY OR UNREADABLE FILE]\n")
+
+print("FULL_REPO_DUMP.txt został wygenerowany.")
 
 ================================================================================
 FULL_REPO_DUMP.txt
@@ -267,6 +182,77 @@ KEYS.xlsx
 
 [BINARY OR UNREADABLE FILE]
 
+
+================================================================================
+mrna-plum.spec
+================================================================================
+
+# -*- mode: python ; coding: utf-8 -*-
+
+
+a = Analysis(
+    ['src\\mrna_plum\\cli.py'],
+    pathex=['src'],
+    binaries=[],
+    datas=[],
+    hiddenimports=[],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+    optimize=0,
+)
+pyz = PYZ(a.pure)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.datas,
+    [],
+    name='mrna-plum',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+
+
+================================================================================
+pyproject.toml
+================================================================================
+
+[project]
+name = "rna-plum"
+version = "0.1.0"
+description = "RNA-PLUM CLI (merge/parse/stats/export) for Moodle/PLUM logs"
+requires-python = ">=3.10"
+dependencies = [
+  "typer>=0.12.0",
+  "PyYAML>=6.0",
+  "duckdb>=1.0.0",
+  "pandas>=2.0.0",
+  "pyarrow>=15.0.0",
+  "openpyxl>=3.1.0",
+]
+
+[project.scripts]
+rna_plum = "rna_plum.cli:app"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 ================================================================================
 src\mrna_plum\__init__.py
@@ -847,14 +833,14 @@ from typing import Optional, Callable, Any
 
 import typer
 
-from .paths import ProjectPaths
-from .config import load_config
-from .logging_run import setup_file_logger
-from .ui_bridge import ProgressWriter
-from .errors import ConfigError, InputDataError, MixedPeriodsError, ProcessingError
+from mrna_plum.paths import ProjectPaths
+from mrna_plum.config import load_config
+from mrna_plum.logging_run import setup_file_logger
+from mrna_plum.ui_bridge import ProgressWriter
+from mrna_plum.errors import ConfigError, InputDataError, MixedPeriodsError, ProcessingError
 
 # NEW: autodetekcja INPUTS_DIR
-from .inputs.autodetect import find_inputs, InputValidationError
+from mrna_plum.inputs.autodetect import find_inputs, InputValidationError
 
 app = typer.Typer(add_completion=False)
 
@@ -1543,7 +1529,7 @@ from typing import Any, Dict, Optional
 
 import yaml
 
-from .errors import ConfigError
+from mrna_plum.errors import ConfigError
 
 
 # ---------------------------------------------------------------------------
@@ -2093,7 +2079,46 @@ from mrna_plum.io.csv_read import read_csv_safely
 
 class InputValidationError(RuntimeError):
     pass
+@dataclass(frozen=True)
+class DetectedInputs:
+    teachers_csv: Optional[Path] = None
+    roster_csv: Optional[Path] = None
+    snapshot_csv: Optional[Path] = None
 
+
+def _pick_latest(paths: list[Path]) -> Optional[Path]:
+    if not paths:
+        return None
+    return max(paths, key=lambda p: p.stat().st_mtime)
+
+
+def find_inputs(inputs_dir: Path) -> DetectedInputs:
+    """
+    Autodetekcja plików metryczki w folderze (rekurencyjnie).
+    Szukamy po fragmencie nazwy (case-insensitive):
+      - teachers/hr: 'nauczyciel' lub 'hr'
+      - roster/uczestnicy: 'uczestnik', 'roster', 'enrol', 'zapisani'
+      - snapshot/zawartosc kursow: 'zawartosc_kurs', 'snapshot', 'aktywno'
+    """
+    base = Path(inputs_dir).expanduser().resolve()
+    if not base.exists() or not base.is_dir():
+        raise InputValidationError(f"inputs_dir not found or not a folder: {base}")
+
+    csvs = list(base.rglob("*.csv"))
+
+    def has_any(p: Path, keys: Tuple[str, ...]) -> bool:
+        n = p.name.lower()
+        return any(k in n for k in keys)
+
+    teachers = [p for p in csvs if has_any(p, ("nauczyciel", "teachers", "hr"))]
+    roster = [p for p in csvs if has_any(p, ("uczestnik", "roster", "enrol", "enroll", "zapisani"))]
+    snapshot = [p for p in csvs if has_any(p, ("zawartosc_kurs", "snapshot", "aktywno"))]
+
+    return DetectedInputs(
+        teachers_csv=_pick_latest(teachers),
+        roster_csv=_pick_latest(roster),
+        snapshot_csv=_pick_latest(snapshot),
+    )
 
 def _norm(s: str) -> str:
     # Normalizacja "odporna": małe litery, bez cudzysłowów, spacje->underscore
@@ -3361,9 +3386,9 @@ from __future__ import annotations
 from pathlib import Path
 import pandas as pd
 
-from ..config import AppConfig
-from ..errors import MixedPeriodsError, ProcessingError
-from ..rules.engine import match_best_rule
+from mrna_plum.config import AppConfig
+from mrna_plum.errors import MixedPeriodsError, ProcessingError
+from mrna_plum.rules.engine import match_best_rule
 from .context import parse_context
 
 def parse_merged_parquet(
@@ -4925,8 +4950,8 @@ import pandas as pd
 import yaml
 
 from mrna_plum import paths
-from ..errors import ConfigError
-from ..paths import ProjectPaths
+from mrna_plum.errors import ConfigError
+from mrna_plum.paths import ProjectPaths
 
 # ----------------------------
 # Helpers / config
@@ -6714,6 +6739,114 @@ src/mrna_plum/ui_bridge/progress.py
 
 ================================================================================
 src\mrna_plum.egg-info\top_level.txt
+================================================================================
+
+mrna_plum
+
+
+================================================================================
+src\rna_plum.egg-info\dependency_links.txt
+================================================================================
+
+
+
+
+================================================================================
+src\rna_plum.egg-info\entry_points.txt
+================================================================================
+
+[console_scripts]
+rna_plum = rna_plum.cli:app
+
+
+================================================================================
+src\rna_plum.egg-info\PKG-INFO
+================================================================================
+
+Metadata-Version: 2.4
+Name: rna-plum
+Version: 0.1.0
+Summary: RNA-PLUM CLI (merge/parse/stats/export) for Moodle/PLUM logs
+Requires-Python: >=3.10
+Requires-Dist: typer>=0.12.0
+Requires-Dist: PyYAML>=6.0
+Requires-Dist: duckdb>=1.0.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: pyarrow>=15.0.0
+Requires-Dist: openpyxl>=3.1.0
+
+
+================================================================================
+src\rna_plum.egg-info\requires.txt
+================================================================================
+
+typer>=0.12.0
+PyYAML>=6.0
+duckdb>=1.0.0
+pandas>=2.0.0
+pyarrow>=15.0.0
+openpyxl>=3.1.0
+
+
+================================================================================
+src\rna_plum.egg-info\SOURCES.txt
+================================================================================
+
+pyproject.toml
+src/mrna_plum/__init__.py
+src/mrna_plum/__main__.py
+src/mrna_plum/cfg_helpers.py
+src/mrna_plum/cli.py
+src/mrna_plum/config.py
+src/mrna_plum/errors.py
+src/mrna_plum/init_project.py
+src/mrna_plum/logging_run.py
+src/mrna_plum/paths.py
+src/mrna_plum/activities/__init__.py
+src/mrna_plum/activities/activities_state.py
+src/mrna_plum/activities/snapshots_load.py
+src/mrna_plum/import/__init__.py
+src/mrna_plum/import/import_roster.py
+src/mrna_plum/inputs/__init__.py
+src/mrna_plum/inputs/autodetect.py
+src/mrna_plum/io/__init__.py
+src/mrna_plum/io/csv_read.py
+src/mrna_plum/io/excel_keys.py
+src/mrna_plum/merge/__init__.py
+src/mrna_plum/merge/merge_logs.py
+src/mrna_plum/merge/test_merge_logs.py
+src/mrna_plum/parse/__init__.py
+src/mrna_plum/parse/context.py
+src/mrna_plum/parse/parse_events.py
+src/mrna_plum/parse/parse_logs.py
+src/mrna_plum/reports/__init__.py
+src/mrna_plum/reports/export_excel.py
+src/mrna_plum/reports/export_individual.py
+src/mrna_plum/rules/__init__.py
+src/mrna_plum/rules/activity_rules.py
+src/mrna_plum/rules/engine.py
+src/mrna_plum/rules/models.py
+src/mrna_plum/stats/__init__.py
+src/mrna_plum/stats/compute_stats.py
+src/mrna_plum/store/__init__.py
+src/mrna_plum/store/database.py
+src/mrna_plum/store/duckdb_store.py
+src/mrna_plum/tests/__init__.py
+src/mrna_plum/tests/test_build_activities_state.py
+src/mrna_plum/tests/test_compute_stats.py
+src/mrna_plum/tests/test_export_excel.py
+src/mrna_plum/tests/test_export_individual.py
+src/mrna_plum/ui_bridge/__init__.py
+src/mrna_plum/ui_bridge/progress.py
+src/rna_plum.egg-info/PKG-INFO
+src/rna_plum.egg-info/SOURCES.txt
+src/rna_plum.egg-info/dependency_links.txt
+src/rna_plum.egg-info/entry_points.txt
+src/rna_plum.egg-info/requires.txt
+src/rna_plum.egg-info/top_level.txt
+
+================================================================================
+src\rna_plum.egg-info\top_level.txt
 ================================================================================
 
 mrna_plum
