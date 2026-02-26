@@ -1,0 +1,3347 @@
+﻿# VBA EXPORT
+# Host: Microsoft Excel
+# Project: VBAProject
+# Date: 2026-02-26 14:22:20
+# Components: 15
+--------------------------------------------------------------------------------
+================================================================================
+=== Component: Ten_skoroszyt  [Document/Sheet Module]
+================================================================================
+Private Sub Workbook_Open()
+    raporty_plum.Show vbModeless
+End Sub
+
+
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: Arkusz1  [Document/Sheet Module]
+================================================================================
+
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: raporty_plum  [UserForm]
+================================================================================
+Option Explicit
+
+Private Sub Label3_Click()
+
+End Sub
+
+Private Sub UserForm_Initialize()
+
+    Me.caption = "mRNA-PLUM — Raporty Nauczycieli Akademickich"
+
+    ' wczytaj ostatnie ścieżki
+    Me.txtLogsFolder.text = GetSetting("mRNA-PLUM", "Paths", "LogsFolder", "")
+    Me.txtTemplateXlsx.text = ""
+
+    ' KEYS: pamiętaj wybór, a jak brak to domyślnie root\_data\KEYS.xlsx
+    Dim defKeys As String
+    defKeys = ThisWorkbook.path & "\_data\KEYS.xlsx"
+
+    Me.txtKeysXlsx.text = GetSetting("mRNA-PLUM", "Paths", "KeysXlsx", defKeys)
+    Me.txtInputsDir.text = GetSetting("mRNA-PLUM", "Paths", "InputsDir", ThisWorkbook.path & "\_data\inputs")
+
+    ResetProgress
+    Me.LabelStatus.caption = "Gotowy."
+
+End Sub
+
+
+' =========================================================
+' WYBÓR FOLDERU LOGÓW
+' =========================================================
+Private Sub btnPickLogsFolder_Click()
+
+    Dim p As String
+    p = modNA_UIInputs.PickFolderDialog( _
+            "Wskaż folder nadrzędny z logami (z podfolderami)", _
+            Me.txtLogsFolder.text)
+
+    If Len(p) > 0 Then
+        Me.txtLogsFolder.text = p
+    End If
+
+End Sub
+
+
+' =========================================================
+' WYBÓR TEMPLATE
+' =========================================================
+Private Sub btnPickTemplate_Click()
+
+    Dim p As String
+    p = modNA_UIInputs.PickFileDialog( _
+            "Wskaż wzór raportu (Excel)", _
+            "Excel", "*.xlsx", "")
+
+    If Len(p) > 0 Then
+        Me.txtTemplateXlsx.text = p
+    End If
+
+End Sub
+
+
+' =========================================================
+' START PIPELINE
+' =========================================================
+Private Sub btnStart_Click()
+
+    Dim errMsg As String
+
+    If Not modNA_UIInputs.UI_ValidateInputs(errMsg) Then
+        MsgBox errMsg, vbExclamation
+        Exit Sub
+    End If
+
+    ' Zapamiętaj folder logów
+    SaveSetting "mRNA-PLUM", "Paths", "LogsFolder", Me.txtLogsFolder.text
+    SaveSetting "mRNA-PLUM", "Paths", "KeysXlsx", Me.txtKeysXlsx.text
+    SaveSetting "mRNA-PLUM", "Paths", "InputsDir", Me.txtInputsDir.text
+
+    Me.btnStart.enabled = False
+    Me.LabelStatus.caption = "Inicjalizacja..."
+
+    modNA_Launcher.StartPipeline
+
+End Sub
+
+
+' =========================================================
+' ZAMKNIJ
+' =========================================================
+Private Sub btnClose_Click()
+    Unload Me
+End Sub
+
+
+' =========================================================
+' PUBLIC — wywoływane z Launchera
+' =========================================================
+
+Public Sub SetStatus(ByVal txt As String)
+    Me.LabelStatus.caption = txt
+End Sub
+
+Public Sub SetProgress(ByVal pct As Double, ByVal txt As String)
+
+    If pct < 0 Then pct = 0
+    If pct > 1 Then pct = 1
+
+    Me.LabelBar.Width = Me.FrameBar.Width * pct
+    Me.LabelPct.caption = Format(pct, "0%")
+    Me.LabelStatus.caption = txt
+
+End Sub
+
+Public Sub ResetProgress()
+    Me.LabelBar.Width = 0
+    Me.LabelPct.caption = "0%"
+End Sub
+
+Public Sub SetRunning(ByVal running As Boolean)
+    Me.btnStart.enabled = Not running
+End Sub
+
+Private Sub btnPickKeys_Click()
+
+    Dim p As String
+    p = modNA_UIInputs.PickFileDialog( _
+            "Wskaż plik KEYS.xlsx (reguły parsowania)", _
+            "Excel", "*.xlsx", _
+            Me.txtKeysXlsx.text)
+
+    If Len(p) > 0 Then
+        Me.txtKeysXlsx.text = p
+    End If
+
+End Sub
+Private Sub btnConvertXlsx_Click()
+    On Error GoTo EH
+
+    Dim src As String
+    src = Trim$(Me.txtInputsDir.text) ' albo osobny textbox np. txtXlsxSourceFolder
+
+    Dim fso As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+
+    ' normalizacja (często ratuje przy kopiuj/wklej)
+    src = Replace$(src, """", "")
+    src = Trim$(src)
+    If Right$(src, 1) = "\" Then src = Left$(src, Len(src) - 1)
+
+    If Len(src) = 0 Or Not fso.FolderExists(src) Then
+        src = modNA_UIInputs.PickFolderDialog( _
+                "Wskaż folder z XLSX do konwersji (z podfolderami)", _
+                ThisWorkbook.path)
+        If Len(src) = 0 Then Exit Sub
+        Me.txtInputsDir.text = src
+    End If
+
+    Me.LabelStatus.caption = "Konwersja XLSX › CSV..."
+    DoEvents
+
+    modNA_Convert.ConvertXlsxFolderToCsv src, ThisWorkbook.path
+
+    Me.LabelStatus.caption = "Konwersja zakończona."
+    Exit Sub
+
+EH:
+    Me.LabelStatus.caption = "Błąd konwersji XLSX › CSV."
+    MsgBox "Błąd: " & Err.Description, vbExclamation
+End Sub
+Private Sub btnMergeTeacherIdCsv_Click()
+    On Error GoTo EH
+
+    Me.LabelStatus.caption = "Scalanie CSV... wybierz 2 pliki."
+    DoEvents
+
+    Call MergeCsv_ByEmail
+
+    Exit Sub
+EH:
+    Me.LabelStatus.caption = "Błąd scalania CSV."
+    MsgBox "Błąd scalania CSV: " & Err.Description, vbExclamation
+End Sub
+
+
+Private Sub btnPickInputsDir_Click()
+    Dim p As String
+    p = modNA_UIInputs.PickFolderDialog( _
+            "Wskaż folder z plikami źródłowymi", _
+            Me.txtInputsDir.text)
+
+    If Len(p) > 0 Then
+        Me.txtInputsDir.text = p
+    End If
+End Sub
+
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: Autostart  [Standard Module]
+================================================================================
+Sub StartRaportowanie()
+    frmMainMenu.Show vbModeless
+End Sub
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: Autozamykanie  [Standard Module]
+================================================================================
+Sub ZamknijSkoroszyt()
+    ThisWorkbook.Close SaveChanges:=False
+End Sub
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: Arkusz2  [Document/Sheet Module]
+================================================================================
+
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: Class1  [Class Module]
+================================================================================
+
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: Arkusz3  [Document/Sheet Module]
+================================================================================
+
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: modExportVBA  [Standard Module]
+================================================================================
+' === modExportVBA.bas (rozszerzenie: TXT + osobne .vb do folderu) ===
+Option Explicit
+
+Private Const vbext_ct_StdModule As Long = 1
+Private Const vbext_ct_ClassModule As Long = 2
+Private Const vbext_ct_MSForm As Long = 3
+Private Const vbext_ct_Document As Long = 100
+
+' --- WIDOCZNE W ALT+F8 (bez parametrów) ---
+Public Sub ExportAllVBAtoSingleTxt_UI()
+    ExportAllVBAtoSingleTxt_Worker ""
+End Sub
+
+Public Sub ExportAllVBAtoSingleTxt_ToFolderDesktop()
+    Dim desk As String
+    desk = CreateObject("WScript.Shell").SpecialFolders("Desktop")
+
+    Dim outPath As String
+    outPath = desk & "\" & SafeStr(ThisWorkbookOrDoc.VBProject.Name) & "_VBA_" & Format(Now, "yyyymmdd_HHNNSS") & ".txt"
+    ExportAllVBAtoSingleTxt_Worker outPath
+End Sub
+
+' NOWE: folder + osobne .vb (i dodatkowo 1 zbiorczy .txt w tym samym folderze)
+Public Sub ExportAllVBA_ToFolder_WithSeparateVB_UI()
+    ExportAllVBA_ToFolder_WithSeparateVB_Worker ""
+End Sub
+' --- /WIDOCZNE ---
+
+
+' =========================
+' 1) Eksport do jednego TXT
+' =========================
+Private Sub ExportAllVBAtoSingleTxt_Worker(Optional ByVal outPath As String = "")
+    On Error GoTo blad
+
+    Dim proj As Object, comps As Object, c As Object
+    Dim hostName As String, projName As String, whenStr As String
+    hostName = Application.Name
+    Set proj = ThisWorkbookOrDoc.VBProject
+    Set comps = proj.VBComponents
+    projName = SafeStr(proj.Name)
+    whenStr = Format(Now, "yyyy-mm-dd HH:nn:ss")
+
+    If Len(outPath) = 0 Then
+        outPath = PickSaveTxt(projName & "_VBA_" & Format(Now, "yyyymmdd_HHNNSS") & ".txt")
+        If Len(outPath) = 0 Then Exit Sub
+    End If
+
+    Dim sb As String
+    sb = "# VBA EXPORT" & vbCrLf & _
+         "# Host: " & hostName & vbCrLf & _
+         "# Project: " & projName & vbCrLf & _
+         "# Date: " & whenStr & vbCrLf & _
+         "# Components: " & comps.Count & vbCrLf & _
+         String(80, "-") & vbCrLf
+
+    For Each c In comps
+        sb = sb & ComponentBlock(c) & vbCrLf
+    Next c
+
+    SaveTextUTF8 outPath, sb
+    MsgBox "Zapisano eksport VBA do:" & vbCrLf & outPath, vbInformation
+    Exit Sub
+
+blad:
+    HandleVBAccessError "Błąd eksportu (TXT)", Err
+End Sub
+
+
+' ==========================================
+' 2) NOWE: Eksport do folderu + osobne .vb
+' ==========================================
+Private Sub ExportAllVBA_ToFolder_WithSeparateVB_Worker(Optional ByVal rootOutDir As String = "")
+    On Error GoTo blad
+
+    Dim proj As Object, comps As Object, c As Object
+    Set proj = ThisWorkbookOrDoc.VBProject
+    Set comps = proj.VBComponents
+
+    Dim hostBase As String
+    hostBase = GetHostFileBaseName() ' nazwa "głównego pliku" (bez rozszerzenia)
+    If Len(hostBase) = 0 Then hostBase = SafeStr(proj.Name)
+
+    If Len(rootOutDir) = 0 Then
+        rootOutDir = PickFolder("Wybierz lokalizację docelową (katalog nadrzędny):")
+        If Len(rootOutDir) = 0 Then Exit Sub
+    End If
+
+    Dim stamp As String: stamp = Format(Now, "yyyymmdd_HHNNSS")
+    Dim outFolder As String
+    outFolder = rootOutDir & "\" & CleanFileName(hostBase) & "_VBA_" & stamp
+
+    EnsureFolderExists outFolder
+    EnsureFolderExists outFolder & "\Modules"
+
+    ' (A) Zapis zbiorczego TXT do tego samego folderu
+    Dim txtPath As String
+    txtPath = outFolder & "\" & CleanFileName(hostBase) & "_VBA_" & stamp & ".txt"
+    ExportAllVBAtoSingleTxt_Worker txtPath
+
+    ' (B) Zapis każdego komponentu do osobnego .vb
+    Dim savedCount As Long: savedCount = 0
+    For Each c In comps
+        Dim codeLines As Long: codeLines = c.CodeModule.CountOfLines
+
+        Dim code As String
+        If codeLines > 0 Then
+            code = c.CodeModule.lines(1, codeLines)
+        Else
+            code = "" ' puste moduły też zapisujemy, żeby było widać że istnieją
+        End If
+
+        Dim header As String
+        header = "' === Component: " & c.Name & " [" & ComponentTypeName(c.Type) & "]" & vbCrLf & _
+                 "' === Exported: " & Format(Now, "yyyy-mm-dd HH:nn:ss") & vbCrLf & vbCrLf
+
+        Dim vbPath As String
+        vbPath = outFolder & "\Modules\" & CleanFileName(c.Name) & ".vb"
+
+        SaveTextUTF8 vbPath, header & code
+        savedCount = savedCount + 1
+    Next c
+
+    MsgBox "Zapisano folder eksportu:" & vbCrLf & outFolder & vbCrLf & vbCrLf & _
+           "• TXT: " & txtPath & vbCrLf & _
+           "• Pliki .vb: " & savedCount & " szt. w \Modules\", vbInformation
+    Exit Sub
+
+blad:
+    HandleVBAccessError "Błąd eksportu (folder + .vb)", Err
+End Sub
+
+
+' === Helper: zwraca obiekt-kontener projektu (Excel: ThisWorkbook, Word: ActiveDocument)
+Private Function ThisWorkbookOrDoc() As Object
+    Dim o As Object
+
+    On Error Resume Next
+    Set o = CallByName(Application, "ThisWorkbook", VbGet)
+    On Error GoTo 0
+    If Not o Is Nothing Then
+        Set ThisWorkbookOrDoc = o
+        Exit Function
+    End If
+
+    On Error Resume Next
+    Set o = CallByName(Application, "ActiveDocument", VbGet)
+    On Error GoTo 0
+    If Not o Is Nothing Then
+        Set ThisWorkbookOrDoc = o
+        Exit Function
+    End If
+
+    Err.Raise 5, , "Nie rozpoznano hosta (Excel/Word) – nie można uzyskać kontenera VBProject."
+End Function
+
+
+Private Function ComponentBlock(ByVal comp As Object) As String
+    Dim kind As String: kind = ComponentTypeName(comp.Type)
+    Dim codeLines As Long: codeLines = comp.CodeModule.CountOfLines
+    Dim code As String: If codeLines > 0 Then code = comp.CodeModule.lines(1, codeLines)
+
+    ComponentBlock = _
+        String(80, "=") & vbCrLf & _
+        "=== Component: " & comp.Name & "  [" & kind & "]" & vbCrLf & _
+        String(80, "=") & vbCrLf & _
+        code & vbCrLf & _
+        String(80, "-") & vbCrLf
+End Function
+
+Private Function ComponentTypeName(ByVal t As Long) As String
+    Select Case t
+        Case vbext_ct_StdModule:   ComponentTypeName = "Standard Module"
+        Case vbext_ct_ClassModule: ComponentTypeName = "Class Module"
+        Case vbext_ct_MSForm:      ComponentTypeName = "UserForm"
+        Case vbext_ct_Document:    ComponentTypeName = "Document/Sheet Module"
+        Case Else:                 ComponentTypeName = "Unknown(" & t & ")"
+    End Select
+End Function
+
+
+' ===== UI pickery =====
+Private Function PickSaveTxt(ByVal suggestName As String) As String
+    On Error GoTo blad
+    With Application.FileDialog(msoFileDialogSaveAs)
+        .title = "Gdzie zapisać eksport VBA jako TXT?"
+        .InitialFileName = suggestName
+        .Filters.Clear
+        .Filters.Add "Pliki tekstowe (*.txt)", "*.txt"
+        If .Show Then PickSaveTxt = .SelectedItems(1)
+    End With
+    Exit Function
+blad:
+    PickSaveTxt = ""
+End Function
+
+Private Function PickFolder(ByVal title As String) As String
+    On Error GoTo blad
+    With Application.FileDialog(msoFileDialogFolderPicker)
+        .title = title
+        If .Show Then PickFolder = .SelectedItems(1)
+    End With
+    Exit Function
+blad:
+    PickFolder = ""
+End Function
+
+
+' ===== Zapis UTF-8 =====
+Private Sub SaveTextUTF8(ByVal path As String, ByVal textData As String)
+    Dim stm As Object: Set stm = CreateObject("ADODB.Stream")
+    With stm
+        .Type = 2           ' adTypeText
+        .Charset = "utf-8"
+        .Open
+        .WriteText textData
+        .SaveToFile path, 2 ' adSaveCreateOverWrite
+        .Close
+    End With
+End Sub
+
+
+' ===== Foldery/ścieżki =====
+Private Sub EnsureFolderExists(ByVal folderPath As String)
+    If Len(dir$(folderPath, vbDirectory)) = 0 Then
+        MkDirRecursive folderPath
+    End If
+End Sub
+
+Private Sub MkDirRecursive(ByVal folderPath As String)
+    Dim fso As Object: Set fso = CreateObject("Scripting.FileSystemObject")
+    If fso.FolderExists(folderPath) Then Exit Sub
+    fso.CreateFolder folderPath
+End Sub
+
+Private Function GetHostFileBaseName() As String
+    ' Excel: ThisWorkbook.Name, Word: ActiveDocument.Name
+    On Error Resume Next
+
+    Dim nm As String
+    nm = ""
+    nm = CallByName(ThisWorkbookOrDoc, "Name", VbGet)
+
+    On Error GoTo 0
+    If Len(nm) = 0 Then Exit Function
+
+    Dim p As Long: p = InStrRev(nm, ".")
+    If p > 1 Then
+        GetHostFileBaseName = Left$(nm, p - 1)
+    Else
+        GetHostFileBaseName = nm
+    End If
+End Function
+
+Private Function CleanFileName(ByVal s As String) As String
+    ' usuwa znaki niedozwolone w nazwach plików Windows
+    Dim bad As Variant, i As Long
+    bad = Array("\", "/", ":", "*", "?", """", "<", ">", "|")
+    CleanFileName = s
+    For i = LBound(bad) To UBound(bad)
+        CleanFileName = Replace(CleanFileName, bad(i), "_")
+    Next i
+    CleanFileName = Trim$(CleanFileName)
+    If Len(CleanFileName) = 0 Then CleanFileName = "NONAME"
+End Function
+
+Private Function SafeStr(ByVal s As String) As String
+    SafeStr = Replace(Replace(s, vbCr, " "), vbLf, " ")
+End Function
+
+
+' ===== Obsługa błędów dostępu do VBProject =====
+Private Sub HandleVBAccessError(ByVal caption As String, ByVal e As ErrObject)
+    If e.Number = 1004 Or e.Number = 70 Then
+        MsgBox "Brak dostępu do projektu VBA." & vbCrLf & _
+               "Włącz: Plik › Opcje › Centrum zaufania › Ustawienia… › Ustawienia makr ›" & vbCrLf & _
+               "„Ufaj dostępowi do modelu obiektowego projektu VBA”.", vbExclamation, caption
+    Else
+        MsgBox caption & ":" & vbCrLf & e.Number & " - " & e.Description, vbCritical
+    End If
+End Sub
+
+
+
+
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: modPdfEngine  [Standard Module]
+================================================================================
+Option Explicit
+
+' ============================================================
+' modPdfEngine — stable PDF engine for mRNA-PLUM (late binding)
+' ============================================================
+
+' ---------- Logging ----------
+Private mLogFile As Integer
+Private mLogPath As String
+
+' ============================================================
+' PUBLIC API
+' ============================================================
+Public Sub PdfEngine_RunBatch(ByVal cfg As Object)
+    On Error GoTo EH
+
+    Dim t0 As Double: t0 = Timer
+
+    ' Validate cfg
+    Dim root As String: root = NzStr(cfg("root"))
+    Dim inFolder As String: inFolder = NzStr(cfg("in_indywidualne"))
+    Dim outPdf As String: outPdf = NzStr(cfg("out_pdf"))
+    Dim runDir As String: runDir = NzStr(cfg("run_dir"))
+    Dim templatePath As String: templatePath = NzStr(cfg("template_path"))
+
+    Dim sheetPers As String: sheetPers = NzStr(cfg("sheet_dane_pers"))
+    Dim sheetKursy As String: sheetKursy = NzStr(cfg("sheet_dane_kursy"))
+    Dim sheetReport As String: sheetReport = NzStr(cfg("sheet_report"))
+
+    Dim maxBlocks As Long: maxBlocks = CLng(cfg("max_blocks"))
+    Dim truncateOverflow As Boolean: truncateOverflow = CBool(cfg("truncate_overflow"))
+
+    If Right$(inFolder, 1) <> "\" Then inFolder = inFolder & "\"
+    If Right$(outPdf, 1) <> "\" Then outPdf = outPdf & "\"
+    If Right$(runDir, 1) <> "\" Then runDir = runDir & "\"
+
+    EnsureFolder runDir
+    EnsureFolder outPdf
+
+    OpenLog runDir, "pdf_batch"
+
+    LogLine "START PdfEngine_RunBatch"
+    LogLine "root=" & root
+    LogLine "in_indywidualne=" & inFolder
+    LogLine "out_pdf=" & outPdf
+    LogLine "template_path=" & templatePath
+
+    If dir(templatePath) = vbNullString Then
+        Err.Raise vbObjectError + 100, "PdfEngine_RunBatch", "Nie znaleziono template: " & templatePath
+    End If
+
+    ' Stability settings
+    Dim prevCalc As XlCalculation
+    Dim prevSU As Boolean, prevEE As Boolean, prevDA As Boolean
+    prevCalc = Application.Calculation
+    prevSU = Application.ScreenUpdating
+    prevEE = Application.EnableEvents
+    prevDA = Application.DisplayAlerts
+
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Application.DisplayAlerts = False
+    Application.Calculation = xlCalculationManual
+
+    Dim f As String
+    f = dir(inFolder & "*.xlsx")
+    If Len(f) = 0 Then
+        LogLine "Brak plików XLSX w: " & inFolder
+        GoTo CleanUp
+    End If
+
+    Dim countOk As Long, countFail As Long, countAll As Long
+
+    Do While Len(f) > 0
+        countAll = countAll + 1
+        Dim srcPath As String: srcPath = inFolder & f
+
+        On Error GoTo OneFail
+        ProcessOneTeacherFile srcPath, templatePath, outPdf, sheetPers, sheetKursy, sheetReport, maxBlocks, truncateOverflow
+        countOk = countOk + 1
+        LogLine "OK: " & srcPath
+        On Error GoTo EH
+
+NextFile:
+    f = dir()
+    DoEvents
+    GoTo ContinueLoop
+
+OneFail:
+    countFail = countFail + 1
+    LogLine "FAIL: " & srcPath & " | Err=" & Err.Number & " | " & Err.Description
+    Err.Clear
+    On Error GoTo EH
+    Resume NextFile
+
+ContinueLoop:
+Loop
+
+CleanUp:
+    Application.Calculation = prevCalc
+    Application.DisplayAlerts = prevDA
+    Application.EnableEvents = prevEE
+    Application.ScreenUpdating = prevSU
+
+    LogLine "DONE: all=" & countAll & ", ok=" & countOk & ", fail=" & countFail & ", sec=" & Format$(Timer - t0, "0.0")
+    CloseLog
+    Exit Sub
+
+EH:
+    LogLine "FATAL: Err=" & Err.Number & " | " & Err.Description
+    CloseLog
+    Err.Raise Err.Number, "PdfEngine_RunBatch", Err.Description
+End Sub
+
+' ============================================================
+' CORE — one teacher file
+' ============================================================
+Private Sub ProcessOneTeacherFile( _
+    ByVal srcPath As String, _
+    ByVal templatePath As String, _
+    ByVal outPdfFolder As String, _
+    ByVal sheetPers As String, _
+    ByVal sheetKursy As String, _
+    ByVal sheetReport As String, _
+    ByVal maxBlocks As Long, _
+    ByVal truncateOverflow As Boolean _
+)
+    On Error GoTo EH
+
+    Dim wbData As Workbook, wbTpl As Workbook
+    Dim wsPers As Worksheet, wsKursy As Worksheet, wsReport As Worksheet
+
+    LogLine "----"
+    LogLine "Process: " & srcPath
+
+    Set wbData = Workbooks.Open(fileName:=srcPath, ReadOnly:=True, UpdateLinks:=0, AddToMru:=False)
+
+    Set wsPers = GetSheetSafe(wbData, sheetPers)
+    Set wsKursy = GetSheetSafe(wbData, sheetKursy)
+    If wsKursy Is Nothing Then Err.Raise vbObjectError + 200, "ProcessOneTeacherFile", "Brak arkusza DANE_KURSY w: " & srcPath
+
+    Set wbTpl = Workbooks.Open(fileName:=templatePath, ReadOnly:=True, UpdateLinks:=0, AddToMru:=False)
+
+    Set wsReport = ResolveReportSheet(wbTpl, sheetReport)
+    If wsReport Is Nothing Then Err.Raise vbObjectError + 201, "ProcessOneTeacherFile", "Nie znaleziono arkusza raportu w template."
+
+    ' 1) Fill named ranges (metryczka + KPI)
+    If Not wsPers Is Nothing Then
+        FillNamedRangesFromDanePers wbTpl, wsPers
+    Else
+        LogLine "WARN: Brak DANE_PERS w źródle: " & srcPath
+    End If
+
+    ' 2) Load courses
+    Dim courses As Collection
+    Set courses = LoadCourses(wsKursy)
+
+    Dim nCourses As Long
+    nCourses = courses.Count
+
+    If nCourses > maxBlocks Then
+        Dim msg As String
+        msg = "Nadmiar kursów: " & nCourses & " > " & maxBlocks & " w " & srcPath
+        If truncateOverflow Then
+            LogLine "WARN: " & msg & " | TRUNCATE -> " & maxBlocks
+            nCourses = maxBlocks
+        Else
+            Err.Raise vbObjectError + 202, "ProcessOneTeacherFile", msg
+        End If
+    End If
+
+    ' 3) Fill course blocks 1..N
+    Dim i As Long
+    For i = 1 To nCourses
+        FillCourseBlock wsReport, i, courses(i)
+    Next i
+
+    ' 4) Clear unused blocks
+    TrimUnusedBlocks wsReport, nCourses, maxBlocks
+
+    ' 5) Setup page breaks (manual)
+    SetupPageBreaks wsReport, nCourses, maxBlocks
+
+    ' 6) Print area to last block
+    SetPrintAreaToLastBlock wsReport, nCourses, maxBlocks
+
+    ' 7) Export PDF
+    Dim outPdfPath As String
+    outPdfPath = outPdfFolder & BuildPdfFileName(wbTpl, wbData, wsPers, srcPath) & ".pdf"
+
+    ExportReportToPdf wbTpl, wsReport, outPdfPath
+
+    ' Close without saving (template always)
+    SafeClose wbTpl
+    SafeClose wbData
+    Exit Sub
+
+EH:
+    LogLine "ERROR ProcessOneTeacherFile: Err=" & Err.Number & " | " & Err.Description
+    SafeClose wbTpl
+    SafeClose wbData
+    Err.Raise Err.Number, "ProcessOneTeacherFile", Err.Description
+End Sub
+
+' ============================================================
+' REQUIRED FUNCTIONS (per spec)
+' ============================================================
+
+Public Sub FillNamedRangesFromDanePers(ByVal templateWb As Workbook, ByVal danePersWs As Worksheet)
+    On Error GoTo EH
+
+    Dim LastRow As Long
+    LastRow = LastUsedRow(danePersWs, 1)
+    If LastRow < 1 Then Exit Sub
+
+    Dim r As Long
+    Dim startRow As Long: startRow = 1
+
+    ' jeśli A1 wygląda jak nagłówek "Name" -> start od 2
+    If LCase$(Trim$(CStr(danePersWs.Cells(1, 1).value))) = "name" Then startRow = 2
+
+    For r = startRow To LastRow
+        Dim nm As String, v As Variant
+        nm = Trim$(CStr(danePersWs.Cells(r, 1).value))
+        v = danePersWs.Cells(r, 2).value
+
+        If Len(nm) > 0 Then
+            If NameExistsInWorkbook(templateWb, nm) Then
+                On Error Resume Next
+                templateWb.names(nm).RefersToRange.value = v
+                If Err.Number <> 0 Then
+                    LogLine "WARN: nie dało się ustawić NamedRange '" & nm & "' (" & Err.Number & "): " & Err.Description
+                    Err.Clear
+                End If
+                On Error GoTo EH
+            Else
+                LogLine "WARN: brak NamedRange w template: " & nm
+            End If
+        End If
+    Next r
+
+    Exit Sub
+EH:
+    Err.Raise Err.Number, "FillNamedRangesFromDanePers", Err.Description
+End Sub
+
+Public Function LoadCourses(ByVal daneKursyWs As Worksheet) As Collection
+    On Error GoTo EH
+
+    Dim col As New Collection
+
+    Dim LastRow As Long, lastCol As Long
+    LastRow = LastUsedRow(daneKursyWs, 1)
+    lastCol = LastUsedCol(daneKursyWs, 1)
+    If LastRow < 2 Or lastCol < 1 Then
+        Set LoadCourses = col
+        Exit Function
+    End If
+
+    Dim headers() As Variant
+    headers = daneKursyWs.Range(daneKursyWs.Cells(1, 1), daneKursyWs.Cells(1, lastCol)).Value2
+
+    Dim data() As Variant
+    data = daneKursyWs.Range(daneKursyWs.Cells(2, 1), daneKursyWs.Cells(LastRow, lastCol)).Value2
+
+    Dim r As Long, c As Long
+    For r = 1 To UBound(data, 1)
+        Dim d As Object ' Scripting.Dictionary
+        Set d = CreateObject("Scripting.Dictionary")
+        d.CompareMode = 1 ' TextCompare
+
+        For c = 1 To lastCol
+            Dim h As String
+            h = Trim$(CStr(headers(1, c)))
+            If Len(h) = 0 Then h = "col_" & c
+            d(h) = data(r, c)
+        Next c
+
+        col.Add d
+    Next r
+
+    Set LoadCourses = col
+    Exit Function
+
+EH:
+    Err.Raise Err.Number, "LoadCourses", Err.Description
+End Function
+
+Public Sub FillCourseBlock(ByVal wsReport As Worksheet, ByVal blockNo As Long, ByVal courseRow As Object)
+    ' courseRow: Scripting.Dictionary header->value
+    On Error GoTo EH
+
+    Dim topNm As String
+    topNm = "nr_blk_" & Format$(blockNo, "00") & "_top"
+
+    Dim topCell As Range
+    Set topCell = GetNamedRangeCell(wsReport.Parent, topNm)
+    If topCell Is Nothing Then
+        LogLine "WARN: brak NamedRange top dla bloku: " & topNm
+        Exit Sub
+    End If
+
+    ' --- MAPOWANIE BLOKU ---
+    ' Najstabilniejsze podejście: tabela map w template (opcjonalna):
+    ' Sheet: "MAPA_BLOKU"
+    ' kol A: FieldName (nagłówek z DANE_KURSY)
+    ' kol B: RowOffset (0=ten sam wiersz co top)
+    ' kol C: ColOffset (0=ta sama kolumna co top)
+    ' Jeśli nie ma MAPA_BLOKU -> stosujemy "default minimal" (tytuł kursu itp.) + log ostrzegawczy.
+
+    Dim map As Object
+    Set map = TryLoadBlockMap(wsReport.Parent)
+
+    If map Is Nothing Then
+        ' Default minimal: wpisz tytuł kursu w 2 wierszach od top,
+        ' a ID kursu obok (bardzo bezpieczne, bo nie rozwala layoutu).
+        ' Dostosujesz po potwierdzeniu offsetów albo dodaniu MAPA_BLOKU.
+        LogLine "WARN: brak MAPA_BLOKU w template — używam default minimal dla bloku " & blockNo
+
+        Dim vTitle As Variant, vId As Variant
+        vTitle = PickCourseValue(courseRow, Array("pełna nazwa e-kursu", "pelna nazwa e-kursu", "full_name", "fullname", "nazwa", "course_name", "nazwa kursu"))
+        vId = PickCourseValue(courseRow, Array("id kursu", "course_id", "id", "courseid"))
+
+        ' Wstaw: topCell.Offset(0,0) -> tytuł
+        topCell.Offset(0, 0).value = vTitle
+        ' ID np. w komórce obok (kolumna +10) — bezpieczne, ale może wymagać korekty
+        topCell.Offset(0, 10).value = vId
+
+        Exit Sub
+    End If
+
+    ' Map exists: iterate entries field->(rOff,cOff)
+    Dim k As Variant
+    For Each k In map.keys
+        Dim rc As Variant
+        rc = map(k) ' array(0)=rOff, array(1)=cOff
+
+        Dim val As Variant
+        val = GetCourseValueByHeader(courseRow, CStr(k))
+
+        With topCell.Offset(CLng(rc(0)), CLng(rc(1)))
+            .value = val
+        End With
+    Next k
+
+    Exit Sub
+
+EH:
+    Err.Raise Err.Number, "FillCourseBlock", Err.Description
+End Sub
+
+Public Sub SetupPageBreaks(ByVal wsReport As Worksheet, ByVal nCourses As Long, ByVal maxBlocks As Long)
+    On Error GoTo EH
+
+    ' Reset existing manual breaks
+    On Error Resume Next
+    wsReport.ResetAllPageBreaks
+    On Error GoTo EH
+
+    ' Wg ustaleń: HPageBreak przed blokami #2,#5,#8,#11,#14 (ale tylko jeśli istnieją w zakresie 1..maxBlocks)
+    Dim breaks As Variant
+    breaks = Array(2, 5, 8, 11, 14)
+
+    Dim i As Long
+    For i = LBound(breaks) To UBound(breaks)
+        Dim b As Long: b = CLng(breaks(i))
+        If b >= 1 And b <= maxBlocks Then
+            ' Jeśli realnie mamy mniej kursów niż b, to i tak break jest OK (template ma stałe strony),
+            ' ale możesz też warunkować: If nCourses >= b Then ...
+            Dim nm As String
+            nm = "nr_blk_" & Format$(b, "00") & "_top"
+            Dim topCell As Range
+            Set topCell = GetNamedRangeCell(wsReport.Parent, nm)
+            If Not topCell Is Nothing Then
+                wsReport.HPageBreaks.Add Before:=topCell
+            Else
+                LogLine "WARN: SetupPageBreaks brak named range: " & nm
+            End If
+        End If
+    Next i
+
+    Exit Sub
+EH:
+    Err.Raise Err.Number, "SetupPageBreaks", Err.Description
+End Sub
+
+Public Sub TrimUnusedBlocks(ByVal wsReport As Worksheet, ByVal nCourses As Long, ByVal maxBlocks As Long)
+    On Error GoTo EH
+
+    If nCourses < 0 Then nCourses = 0
+    If nCourses >= maxBlocks Then Exit Sub
+
+    Dim blockHeight As Long
+    blockHeight = DetectBlockHeight(wsReport, maxBlocks)
+    If blockHeight <= 0 Then
+        LogLine "WARN: Nie wykryto wysokości bloku — TrimUnusedBlocks pominięte"
+        Exit Sub
+    End If
+
+    Dim b As Long
+    For b = nCourses + 1 To maxBlocks
+        Dim topNm As String: topNm = "nr_blk_" & Format$(b, "00") & "_top"
+        Dim topCell As Range: Set topCell = GetNamedRangeCell(wsReport.Parent, topNm)
+        If Not topCell Is Nothing Then
+            Dim rng As Range
+            ' Czyścimy "obszar bloku": od top w dół blockHeight-1 wierszy.
+            ' Szerokość: używamy UsedRange.Columns, ale ograniczamy do sensownego obszaru strony.
+            Set rng = BlockRangeByHeuristics(wsReport, topCell, blockHeight)
+            rng.ClearContents
+        End If
+    Next b
+
+    Exit Sub
+EH:
+    Err.Raise Err.Number, "TrimUnusedBlocks", Err.Description
+End Sub
+
+Public Sub SetPrintAreaToLastBlock(ByVal wsReport As Worksheet, ByVal nCourses As Long, ByVal maxBlocks As Long)
+    On Error GoTo EH
+
+    If nCourses <= 0 Then
+        ' jeżeli brak kursów — drukuj stronę 1 (metryczka + KPI) -> ustawimy UsedRange
+        wsReport.PageSetup.PrintArea = wsReport.UsedRange.Address
+        Exit Sub
+    End If
+
+    If nCourses > maxBlocks Then nCourses = maxBlocks
+
+    Dim blockHeight As Long
+    blockHeight = DetectBlockHeight(wsReport, maxBlocks)
+    If blockHeight <= 0 Then
+        wsReport.PageSetup.PrintArea = wsReport.UsedRange.Address
+        Exit Sub
+    End If
+
+    Dim lastTopNm As String: lastTopNm = "nr_blk_" & Format$(nCourses, "00") & "_top"
+    Dim lastTop As Range: Set lastTop = GetNamedRangeCell(wsReport.Parent, lastTopNm)
+
+    If lastTop Is Nothing Then
+        wsReport.PageSetup.PrintArea = wsReport.UsedRange.Address
+        Exit Sub
+    End If
+
+    Dim LastRow As Long
+    LastRow = lastTop.row + blockHeight - 1
+
+    ' Kolumny do wydruku: od 1 do ostatniej użytej w nagłówku / usedrange
+    Dim lastCol As Long
+    lastCol = wsReport.UsedRange.Column + wsReport.UsedRange.Columns.Count - 1
+    If lastCol < 1 Then lastCol = 1
+
+    Dim rng As Range
+    Set rng = wsReport.Range(wsReport.Cells(1, 1), wsReport.Cells(LastRow, lastCol))
+    wsReport.PageSetup.PrintArea = rng.Address
+
+    Exit Sub
+EH:
+    Err.Raise Err.Number, "SetPrintAreaToLastBlock", Err.Description
+End Sub
+
+Public Sub ExportReportToPdf(ByVal templateWb As Workbook, ByVal wsReport As Worksheet, ByVal outPdfPath As String)
+    On Error GoTo EH
+
+    EnsureFolder ParentFolder(outPdfPath)
+
+    ' Stabilne ustawienia PageSetup wg ustaleń
+    With wsReport.PageSetup
+        .Zoom = False
+        .FitToPagesWide = 1
+        .FitToPagesTall = False
+    End With
+
+    ' Export
+    wsReport.ExportAsFixedFormat _
+        Type:=xlTypePDF, _
+        fileName:=outPdfPath, _
+        Quality:=xlQualityStandard, _
+        IncludeDocProperties:=True, _
+        IgnorePrintAreas:=False, _
+        OpenAfterPublish:=False
+
+    LogLine "PDF: " & outPdfPath
+    Exit Sub
+
+EH:
+    Err.Raise Err.Number, "ExportReportToPdf", Err.Description
+End Sub
+
+' ============================================================
+' Helpers — report/template/data
+' ============================================================
+
+Private Function ResolveReportSheet(ByVal wb As Workbook, ByVal sheetName As String) As Worksheet
+    On Error Resume Next
+    If Len(sheetName) > 0 Then
+        Set ResolveReportSheet = wb.Worksheets(sheetName)
+    Else
+        Set ResolveReportSheet = wb.Worksheets(1)
+    End If
+    On Error GoTo 0
+End Function
+
+Private Function GetSheetSafe(ByVal wb As Workbook, ByVal sheetName As String) As Worksheet
+    On Error Resume Next
+    Set GetSheetSafe = wb.Worksheets(sheetName)
+    On Error GoTo 0
+End Function
+
+Private Sub SafeClose(ByVal wb As Workbook)
+    On Error Resume Next
+    If Not wb Is Nothing Then wb.Close SaveChanges:=False
+    On Error GoTo 0
+End Sub
+
+Private Function BuildPdfFileName(ByVal wbTpl As Workbook, ByVal wbData As Workbook, ByVal wsPers As Worksheet, ByVal srcPath As String) As String
+    ' Prefer: NazwiskoImie + BAZUS ID (z DANE_PERS jeśli są NamedRanges na te dane)
+    On Error GoTo EH
+
+    Dim base As String
+    base = FileBaseName(srcPath)
+
+    Dim nazw As String, bazus As String
+    nazw = ""
+    bazus = ""
+
+    ' Jeżeli w DANE_PERS są klucze, np. nr_meta_NazwiskoImie / nr_meta_BazusID
+    ' to to już trafia do NamedRanges w template. Ale do nazwy PDF możemy też czytać prosto z DANE_PERS:
+    If Not wsPers Is Nothing Then
+        nazw = FindPersValue(wsPers, Array("NazwiskoImie", "Nazwisko Imię", "NAZWISKOIMIE", "nr_meta_NazwiskoImie"))
+        bazus = FindPersValue(wsPers, Array("BAZUS ID", "Bazus ID", "BAZUSID", "nr_meta_BazusID"))
+    End If
+
+    If Len(Trim$(nazw)) > 0 Then base = Trim$(nazw)
+    If Len(Trim$(bazus)) > 0 Then base = base & "_" & Trim$(bazus)
+
+    base = SanitizeFileName(base)
+    If Len(base) > 180 Then base = Left$(base, 180)
+
+    BuildPdfFileName = base
+    Exit Function
+
+EH:
+    BuildPdfFileName = SanitizeFileName(FileBaseName(srcPath))
+End Function
+
+Private Function FindPersValue(ByVal ws As Worksheet, ByVal keys As Variant) As String
+    On Error GoTo EH
+    Dim LastRow As Long: LastRow = LastUsedRow(ws, 1)
+    If LastRow < 1 Then Exit Function
+
+    Dim startRow As Long: startRow = 1
+    If LCase$(Trim$(CStr(ws.Cells(1, 1).value))) = "name" Then startRow = 2
+
+    Dim r As Long, i As Long
+    For r = startRow To LastRow
+        Dim nm As String: nm = Trim$(CStr(ws.Cells(r, 1).value))
+        If Len(nm) > 0 Then
+            For i = LBound(keys) To UBound(keys)
+                If LCase$(nm) = LCase$(CStr(keys(i))) Then
+                    FindPersValue = Trim$(CStr(ws.Cells(r, 2).value))
+                    Exit Function
+                End If
+            Next i
+        End If
+    Next r
+    Exit Function
+EH:
+    FindPersValue = ""
+End Function
+
+' ============================================================
+' Block mapping via MAPA_BLOKU (recommended)
+' ============================================================
+
+Private Function TryLoadBlockMap(ByVal wb As Workbook) As Object
+    ' Returns Scripting.Dictionary: key=FieldName (DANE_KURSY header), value=array(rOff,cOff)
+    ' Expected sheet: MAPA_BLOKU
+    ' A: FieldName, B: RowOffset, C: ColOffset
+    On Error GoTo EH
+
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = wb.Worksheets("MAPA_BLOKU")
+    On Error GoTo 0
+    If ws Is Nothing Then Exit Function
+
+    Dim LastRow As Long: LastRow = LastUsedRow(ws, 1)
+    If LastRow < 2 Then Exit Function
+
+    Dim d As Object: Set d = CreateObject("Scripting.Dictionary")
+    d.CompareMode = 1 ' TextCompare
+
+    Dim r As Long
+    For r = 2 To LastRow
+        Dim fieldName As String
+        fieldName = Trim$(CStr(ws.Cells(r, 1).value))
+        If Len(fieldName) > 0 Then
+            Dim ro As Long, co As Long
+            ro = CLng(val(ws.Cells(r, 2).value))
+            co = CLng(val(ws.Cells(r, 3).value))
+            d(fieldName) = Array(ro, co)
+        End If
+    Next r
+
+    If d.Count = 0 Then Exit Function
+    Set TryLoadBlockMap = d
+    Exit Function
+
+EH:
+    LogLine "WARN: MAPA_BLOKU read error: " & Err.Number & " | " & Err.Description
+End Function
+
+Private Function GetCourseValueByHeader(ByVal courseRow As Object, ByVal headerName As String) As Variant
+    ' direct header match
+    If courseRow.Exists(headerName) Then
+        GetCourseValueByHeader = courseRow(headerName)
+    Else
+        ' fuzzy (normalized)
+        GetCourseValueByHeader = GetCourseValueFuzzy(courseRow, headerName)
+    End If
+End Function
+
+Private Function GetCourseValueFuzzy(ByVal courseRow As Object, ByVal headerName As String) As Variant
+    On Error GoTo EH
+
+    Dim target As String
+    target = NormalizeKey(headerName)
+
+    Dim k As Variant
+    For Each k In courseRow.keys
+        If NormalizeKey(CStr(k)) = target Then
+            GetCourseValueFuzzy = courseRow(k)
+            Exit Function
+        End If
+    Next k
+
+    GetCourseValueFuzzy = vbNullString
+    Exit Function
+
+EH:
+    GetCourseValueFuzzy = vbNullString
+End Function
+
+Private Function PickCourseValue(ByVal courseRow As Object, ByVal candidates As Variant) As Variant
+    Dim i As Long
+    For i = LBound(candidates) To UBound(candidates)
+        Dim v As Variant
+        v = GetCourseValueByHeader(courseRow, CStr(candidates(i)))
+        If Len(Trim$(CStr(v))) > 0 Then
+            PickCourseValue = v
+            Exit Function
+        End If
+    Next i
+    PickCourseValue = vbNullString
+End Function
+
+' ============================================================
+' Block geometry heuristics
+' ============================================================
+
+Private Function DetectBlockHeight(ByVal wsReport As Worksheet, ByVal maxBlocks As Long) As Long
+    ' detect from successive tops: min positive delta between blk_i and blk_{i+1}
+    On Error GoTo EH
+
+    Dim minDelta As Long: minDelta = 0
+    Dim i As Long
+    For i = 1 To maxBlocks - 1
+        Dim a As Range, b As Range
+        Set a = GetNamedRangeCell(wsReport.Parent, "nr_blk_" & Format$(i, "00") & "_top")
+        Set b = GetNamedRangeCell(wsReport.Parent, "nr_blk_" & Format$(i + 1, "00") & "_top")
+        If Not a Is Nothing And Not b Is Nothing Then
+            Dim d As Long: d = b.row - a.row
+            If d > 0 Then
+                If minDelta = 0 Or d < minDelta Then minDelta = d
+            End If
+        End If
+    Next i
+
+    DetectBlockHeight = minDelta
+    Exit Function
+
+EH:
+    DetectBlockHeight = 0
+End Function
+
+Private Function BlockRangeByHeuristics(ByVal ws As Worksheet, ByVal topCell As Range, ByVal blockHeight As Long) As Range
+    ' width: we take usedrange last col, but at least up to topCell.Column
+    Dim lastCol As Long
+    lastCol = ws.UsedRange.Column + ws.UsedRange.Columns.Count - 1
+    If lastCol < topCell.Column Then lastCol = topCell.Column
+
+    Set BlockRangeByHeuristics = ws.Range(ws.Cells(topCell.row, 1), ws.Cells(topCell.row + blockHeight - 1, lastCol))
+End Function
+
+' ============================================================
+' Named range utilities
+' ============================================================
+
+Private Function NameExistsInWorkbook(ByVal wb As Workbook, ByVal nameText As String) As Boolean
+    On Error GoTo EH
+    Dim nm As Name
+    Set nm = wb.names(nameText)
+    NameExistsInWorkbook = True
+    Exit Function
+EH:
+    NameExistsInWorkbook = False
+End Function
+
+Private Function GetNamedRangeCell(ByVal wb As Workbook, ByVal nameText As String) As Range
+    On Error GoTo EH
+    Dim nm As Name
+    Set nm = wb.names(nameText)
+    Set GetNamedRangeCell = nm.RefersToRange.Cells(1, 1)
+    Exit Function
+EH:
+    Set GetNamedRangeCell = Nothing
+End Function
+
+' ============================================================
+' File / folder / log
+' ============================================================
+
+Private Sub EnsureFolder(ByVal path As String)
+    On Error Resume Next
+    If Len(path) = 0 Then Exit Sub
+    If Right$(path, 1) = "\" Then path = Left$(path, Len(path) - 1)
+    If Len(dir(path, vbDirectory)) = 0 Then MkDir path
+    On Error GoTo 0
+End Sub
+
+Private Function ParentFolder(ByVal fullPath As String) As String
+    Dim p As Long: p = InStrRev(fullPath, "\")
+    If p > 0 Then ParentFolder = Left$(fullPath, p) Else ParentFolder = ""
+End Function
+
+Private Function FileBaseName(ByVal fullPath As String) As String
+    Dim s As String: s = fullPath
+    Dim p As Long: p = InStrRev(s, "\")
+    If p > 0 Then s = Mid$(s, p + 1)
+    Dim d As Long: d = InStrRev(s, ".")
+    If d > 0 Then s = Left$(s, d - 1)
+    FileBaseName = s
+End Function
+
+Private Function SanitizeFileName(ByVal s As String) As String
+    Dim bad As Variant, i As Long
+    bad = Array("\", "/", ":", "*", "?", """", "<", ">", "|")
+    For i = LBound(bad) To UBound(bad)
+        s = Replace$(s, CStr(bad(i)), "_")
+    Next i
+    s = Replace$(s, vbCr, " ")
+    s = Replace$(s, vbLf, " ")
+    s = Trim$(s)
+    SanitizeFileName = s
+End Function
+
+Private Sub OpenLog(ByVal runDir As String, ByVal prefix As String)
+    Dim ts As String
+    ts = Format$(Now, "yyyy-mm-dd_hh-nn-ss")
+    mLogPath = runDir & prefix & "_" & ts & ".log"
+
+    mLogFile = FreeFile
+    Open mLogPath For Output As #mLogFile
+    Print #mLogFile, "LOG " & Now
+End Sub
+
+Private Sub CloseLog()
+    On Error Resume Next
+    If mLogFile <> 0 Then Close #mLogFile
+    mLogFile = 0
+    On Error GoTo 0
+End Sub
+
+Private Sub LogLine(ByVal s As String)
+    On Error Resume Next
+    If mLogFile <> 0 Then Print #mLogFile, Format$(Now, "hh:nn:ss") & " | " & s
+    On Error GoTo 0
+End Sub
+
+' ============================================================
+' Worksheet scanning
+' ============================================================
+
+Private Function LastUsedRow(ByVal ws As Worksheet, ByVal col As Long) As Long
+    On Error GoTo EH
+    LastUsedRow = ws.Cells(ws.Rows.Count, col).End(xlUp).row
+    Exit Function
+EH:
+    LastUsedRow = 0
+End Function
+
+Private Function LastUsedCol(ByVal ws As Worksheet, ByVal row As Long) As Long
+    On Error GoTo EH
+    LastUsedCol = ws.Cells(row, ws.Columns.Count).End(xlToLeft).Column
+    Exit Function
+EH:
+    LastUsedCol = 0
+End Function
+
+' ============================================================
+' Text normalization (simple, stable)
+' ============================================================
+
+Private Function NormalizeKey(ByVal s As String) As String
+    s = LCase$(Trim$(s))
+    s = ReplacePolish(s)
+    s = Replace$(s, " ", "")
+    s = Replace$(s, "_", "")
+    s = Replace$(s, "-", "")
+    s = Replace$(s, "/", "")
+    s = Replace$(s, ":", "")
+    s = Replace$(s, ".", "")
+    s = Replace$(s, ",", "")
+    NormalizeKey = s
+End Function
+
+Private Function ReplacePolish(ByVal s As String) As String
+    s = Replace$(s, "ą", "a")
+    s = Replace$(s, "ć", "c")
+    s = Replace$(s, "ę", "e")
+    s = Replace$(s, "ł", "l")
+    s = Replace$(s, "ń", "n")
+    s = Replace$(s, "ó", "o")
+    s = Replace$(s, "ś", "s")
+    s = Replace$(s, "ż", "z")
+    s = Replace$(s, "ź", "z")
+    ReplacePolish = s
+End Function
+
+Private Function NzStr(ByVal v As Variant) As String
+    If IsError(v) Then NzStr = "" Else NzStr = CStr(v)
+End Function
+
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: modNA_PdfEngine  [Standard Module]
+================================================================================
+Option Explicit
+
+' =========================
+' KONFIG
+' =========================
+Private Const SHEET_KURSY As String = "DANE_KURSY"
+Private Const SHEET_PERS  As String = "DANE_PERS"
+
+Private Const REPORT_SHEET As String = "Raport_NA" ' <-- potwierdziłeś
+
+Private Const MAX_BLOCKS As Long = 16
+
+' PDF / wydruk
+Private Const MARGIN_CM As Double = 1.5
+Private Const PERCENT_FORMAT As String = "0,0%"
+
+Private mLogFile As Integer
+Private mLogPath As String
+
+' =========================
+' START
+' =========================
+Public Sub RaportyNAPDF()
+    On Error GoTo EH
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Application.Calculation = xlCalculationManual
+
+    Dim wzorPath As String, srcFolder As String, outFolder As String
+
+    wzorPath = PickReportTemplate()
+    If Len(wzorPath) = 0 Then GoTo CleanUp
+
+    srcFolder = PickSourceFolder()
+    If Len(srcFolder) = 0 Then GoTo CleanUp
+    If Right$(srcFolder, 1) <> "\" Then srcFolder = srcFolder & "\"
+
+    outFolder = srcFolder & "raporty_NA_pdf\"
+    EnsureFolder outFolder
+
+    Dim f As String
+    f = dir$(srcFolder & "*.xlsx")
+
+    If Len(f) = 0 Then
+        MsgBox "Brak plików .xlsx w folderze.", vbExclamation
+        GoTo CleanUp
+    End If
+
+    Do While Len(f) > 0
+        ProcessOneSourceFile srcFolder & f, wzorPath, outFolder
+        f = dir$
+    Loop
+
+    MsgBox "Zakończone. PDF-y zapisane w: " & outFolder, vbInformation
+
+CleanUp:
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+    Application.Calculation = xlCalculationAutomatic
+    Exit Sub
+
+EH:
+    MsgBox "Błąd: " & Err.Number & " - " & Err.Description, vbCritical
+    Resume CleanUp
+End Sub
+
+' =========================
+' 1 PLIK -> 1 PDF
+' =========================
+Private Sub ProcessOneSourceFile(ByVal srcPath As String, ByVal wzorPath As String, ByVal outFolder As String)
+    On Error GoTo EH
+
+    Dim wbSrc As Workbook, wbTpl As Workbook, wbOut As Workbook
+    Dim wsK As Worksheet, wsP As Worksheet, wsOut As Worksheet
+
+    Dim runFolder As String, logPath As String
+    runFolder = ParentFolderWithBackslash(outFolder) & "_run\"
+    EnsureFolder runFolder
+
+    logPath = runFolder & "pdf_" & Format$(Now, "yyyymmdd_hhnnss") & "_" & SanitizeFileName(Replace$(dir$(srcPath), ".xlsx", "")) & ".log"
+    LogOpen logPath
+    LogLine "START src=" & srcPath
+
+    ' --- open source (read-only) ---
+    Set wbSrc = Workbooks.Open(srcPath, ReadOnly:=True, UpdateLinks:=0, AddToMru:=False)
+    Set wsK = GetWsOrNothing(wbSrc, SHEET_KURSY)
+    Set wsP = GetWsOrNothing(wbSrc, SHEET_PERS)
+
+    If wsK Is Nothing Then
+        LogLine "ERROR: missing sheet: " & SHEET_KURSY
+        GoTo CloseAndExit
+    End If
+
+    ' --- open template (read-only) and SaveCopyAs ---
+    Set wbTpl = Workbooks.Open(wzorPath, ReadOnly:=True, UpdateLinks:=0, AddToMru:=False)
+
+    Dim tmpPath As String
+    tmpPath = outFolder & "~tmp_" & Format$(Now, "yyyymmdd_hhnnss") & "_" & SanitizeFileName(Replace$(wbSrc.Name, ".xlsx", "")) & ".xlsx"
+
+    Application.DisplayAlerts = False
+    wbTpl.SaveCopyAs tmpPath
+    Application.DisplayAlerts = True
+
+    wbTpl.Close SaveChanges:=False
+    Set wbTpl = Nothing
+
+    ' --- open working copy (writable) ---
+    Set wbOut = Workbooks.Open(tmpPath, ReadOnly:=False, UpdateLinks:=0, AddToMru:=False)
+    Set wsOut = GetWsOrNothing(wbOut, REPORT_SHEET)
+    If wsOut Is Nothing Then
+        LogLine "ERROR: missing report sheet: " & REPORT_SHEET
+        GoTo CloseAndExit
+    End If
+
+    ' 1) DANE_PERS -> NamedRanges
+    If Not wsP Is Nothing Then
+        FillNamedRangesFromDanePers wbOut, wsP
+    Else
+        LogLine "WARN: missing sheet: " & SHEET_PERS
+    End If
+
+    ' 2) Kursy -> 16 bloków
+    FillAllCourseBlocks wbOut, wsOut, wsK, MAX_BLOCKS
+
+    ' 3) Layout + Print settings
+    ApplyLayout wsOut
+
+    ' 4) PDF name (prefer NamedRanges, fallback to source filename)
+    Dim nauczyciel As String, bazusID As String, base As String
+    nauczyciel = CStr(GetNameValueOrEmpty(wbOut, "nr_meta_Nauczyciel"))
+    bazusID = CStr(GetNameValueOrEmpty(wbOut, "nr_meta_BazusID"))
+
+    base = Replace$(wbSrc.Name, ".xlsx", "")
+    If Len(Trim$(nauczyciel)) > 0 Then base = Trim$(nauczyciel)
+    If Len(Trim$(bazusID)) > 0 Then base = base & "_" & Trim$(bazusID)
+
+    base = SanitizeFileName(base)
+    If Len(base) > 180 Then base = Left$(base, 180)
+
+    Dim outPdfPath As String
+    outPdfPath = outFolder & base & ".pdf"
+    LogLine "Export PDF -> " & outPdfPath
+
+    wsOut.ExportAsFixedFormat Type:=xlTypePDF, _
+                              fileName:=outPdfPath, _
+                              Quality:=xlQualityStandard, _
+                              IncludeDocProperties:=True, _
+                              IgnorePrintAreas:=False, _
+                              OpenAfterPublish:=False
+
+    LogLine "OK"
+
+CloseAndExit:
+    On Error Resume Next
+    If Not wbOut Is Nothing Then wbOut.Close SaveChanges:=False
+    If Len(tmpPath) > 0 Then Kill tmpPath
+    If Not wbTpl Is Nothing Then wbTpl.Close SaveChanges:=False
+    If Not wbSrc Is Nothing Then wbSrc.Close SaveChanges:=False
+    LogClose
+    On Error GoTo 0
+    Exit Sub
+
+EH:
+    LogLine "FAIL Err=" & Err.Number & " | " & Err.Description
+    Resume CloseAndExit
+End Sub
+
+' =========================
+' BLOKI KURSÓW
+' =========================
+Private Sub FillAllCourseBlocks(ByVal wbOut As Workbook, ByVal wsOut As Worksheet, ByVal wsK As Worksheet, ByVal maxBlocks As Long)
+    On Error GoTo EH
+
+    Dim courses As Collection
+    Set courses = LoadDistinctCourses(wsK) ' kolekcja stringów (display name)
+
+    Dim nAll As Long: nAll = courses.Count
+    Dim nUse As Long: nUse = nAll
+    If nUse > maxBlocks Then
+        LogLine "WARN: overflow courses " & nUse & " -> truncate to " & maxBlocks
+        nUse = maxBlocks
+    End If
+
+    ' słownik metryk: key = courseKey|activityKey -> Array(count, pct)
+    Dim metrics As Object
+    Set metrics = LoadCourseMetrics(wsK)
+
+    Dim b As Long
+    For b = 1 To maxBlocks
+        If b <= nUse Then
+            Dim courseName As String
+            courseName = CStr(courses(b))
+
+            FillOneCourseBlock wbOut, wsOut, b, courseName, metrics
+        Else
+            ClearOneCourseBlock wbOut, wsOut, b
+        End If
+    Next b
+
+    ' pagebreaks: #2,#5,#8,#11,#14 (wg PROMPT 9)
+    SetupPageBreaks_ByTopAnchors wbOut, wsOut, maxBlocks
+
+    ' print area: do końca bloku nUse
+    SetPrintAreaToLastUsedBlock_ByTopAnchors wbOut, wsOut, nUse, maxBlocks
+
+    Exit Sub
+
+EH:
+    Err.Raise Err.Number, "FillAllCourseBlocks", Err.Description
+End Sub
+
+Private Sub FillOneCourseBlock(ByVal wb As Workbook, ByVal ws As Worksheet, ByVal blockNo As Long, ByVal courseName As String, ByVal metrics As Object)
+    On Error GoTo EH
+
+    Dim sNo As String: sNo = Format$(blockNo, "00")
+
+    ' --- nagłówek bloku przez NamedRanges ---
+    SafeSetNameValue wb, "nr_blk_" & sNo & "_top", blockNo
+    SafeSetNameValue wb, "nr_blk_" & sNo & "_CourseName", courseName
+
+    ' ID / liczby: jeśli masz je w DANE_KURSY (np. specjalne wiersze),
+    ' to najprościej dostarczyć je jako NamedRanges w DANE_PERS.
+    ' Ale jeżeli masz w DANE_KURSY kolumny dla ID/studentów/nauczycieli,
+    ' dopisz tu mapowanie. Na razie zostawiamy puste (albo "-").
+    SafeSetNameValue wb, "nr_blk_" & sNo & "_CourseID", ""
+    SafeSetNameValue wb, "nr_blk_" & sNo & "_Studenci", ""
+    SafeSetNameValue wb, "nr_blk_" & sNo & "_Nauczyciele", ""
+    SafeSetNameValue wb, "nr_blk_" & sNo & "_Aktywni", ""
+
+    ' --- zakres bloku: bierzemy od nr_blk_XX_top do tuż przed kolejnym top (albo wysokość jak blok 1) ---
+    Dim rngBlock As Range
+    Set rngBlock = GetBlockRangeByTopAnchors(wb, ws, blockNo, MAX_BLOCKS)
+
+    ' --- aktywności: wypełnij po etykietach w obrębie bloku (działa dla układu lewa/prawa tabela) ---
+    FillActivitiesInsideBlock rngBlock, courseName, metrics
+
+    Exit Sub
+
+EH:
+    Err.Raise Err.Number, "FillOneCourseBlock", Err.Description
+End Sub
+
+Private Sub ClearOneCourseBlock(ByVal wb As Workbook, ByVal ws As Worksheet, ByVal blockNo As Long)
+    Dim sNo As String: sNo = Format$(blockNo, "00")
+
+    SafeSetNameValue wb, "nr_blk_" & sNo & "_CourseName", ""
+    SafeSetNameValue wb, "nr_blk_" & sNo & "_CourseID", ""
+    SafeSetNameValue wb, "nr_blk_" & sNo & "_Studenci", ""
+    SafeSetNameValue wb, "nr_blk_" & sNo & "_Nauczyciele", ""
+    SafeSetNameValue wb, "nr_blk_" & sNo & "_Aktywni", ""
+
+    ' wyczyść wartości liczbowe/procenty w tabelach aktywności w obrębie bloku
+    On Error Resume Next
+    Dim rngBlock As Range
+    Set rngBlock = GetBlockRangeByTopAnchors(wb, ws, blockNo, MAX_BLOCKS)
+    On Error GoTo 0
+    If rngBlock Is Nothing Then Exit Sub
+
+    ClearActivityValuesInsideBlock rngBlock
+End Sub
+
+' -------------------------
+' Aktywności w bloku: znajdź etykiety i wpisz wartości do komórek obok
+' -------------------------
+Private Sub FillActivitiesInsideBlock(ByVal rngBlock As Range, ByVal courseName As String, ByVal metrics As Object)
+    ' Założenie: w wierszu aktywności jest komórka z etykietą (np. "Rozdziały w książce"),
+    ' a po prawej w tym samym wierszu są kolumny: Ilość, % w skali kursu.
+    ' Działa także gdy blok ma DWIE tabele (lewa i prawa), bo etykiety są w obu miejscach.
+
+    Dim activities As Variant
+    activities = Array( _
+        "Rozdziały w książce", "Strony lekcji", "Strona", "Tekst i media", _
+        "Wpisy do bazy danych", "Pojęcia w słowniku", "Adres URL", _
+        "Pliki i foldery", "H5P", "Wpisy w Wiki", _
+        "Utworzone pytania", "Ocenione zadań", "Ocenione zadan", "Ocenione zadania", _
+        "Spotkania MS Teams", "Opinia zwrotna", "Głosowanie", _
+        "Wiadomości na czacie", "Wpisy na forum" _
+    )
+
+    Dim i As Long
+    For i = LBound(activities) To UBound(activities)
+        Dim actLabel As String: actLabel = CStr(activities(i))
+
+        Dim c As Range
+        For Each c In rngBlock.Cells
+            If NormalizeFuzzy(CStr(c.value)) = NormalizeFuzzy(actLabel) Then
+                ' komórka etykiety może być scalona
+                Dim labArea As Range: Set labArea = MergeAreaOrSelf(c)
+                Dim rowNum As Long: rowNum = labArea.row
+
+                ' znajdź w tym wierszu “Ilość” i “% w skali kursu” w ramach tej tabeli
+                ' heurystyka: bierzemy pierwsze dwie NIEPuste komórki na prawo od etykiety,
+                ' które nie są tekstem-nagłówkiem.
+                Dim tgtCount As Range, tgtPct As Range
+                Set tgtCount = FindNextValueCellRight(labArea)
+                If Not tgtCount Is Nothing Then Set tgtPct = FindNextValueCellRight(tgtCount.MergeArea)
+
+                Dim key As String
+                key = NormalizeFuzzy(courseName) & "|" & NormalizeFuzzy(actLabel)
+
+                If metrics.Exists(key) Then
+                    Dim arr As Variant: arr = metrics(key)
+                    PutValueOrDash tgtCount, arr(0), False
+                    PutValueOrDash tgtPct, arr(1), True
+                Else
+                    PutValueOrDash tgtCount, Empty, False
+                    PutValueOrDash tgtPct, Empty, True
+                End If
+            End If
+        Next c
+    Next i
+End Sub
+
+Private Sub ClearActivityValuesInsideBlock(ByVal rngBlock As Range)
+    ' Czyścimy tylko komórki, które wyglądają jak pola Ilość/% (czyli nie teksty).
+    Dim c As Range
+    For Each c In rngBlock.Cells
+        If c.MergeCells Then
+            If c.Address <> c.MergeArea.Cells(1, 1).Address Then GoTo NextC
+        End If
+
+        Dim t As String: t = Trim$(CStr(c.value))
+        If Len(t) = 0 Then GoTo NextC
+
+        ' jeśli to tekst etykiety lub nagłówek - pomijamy
+        If Not IsNumericLike(t) And InStr(1, t, "%", vbTextCompare) = 0 Then GoTo NextC
+
+        c.MergeArea.ClearContents
+NextC:
+    Next c
+End Sub
+
+' =========================
+' DANE: kursy i metryki
+' =========================
+Private Function LoadDistinctCourses(ByVal wsK As Worksheet) As Collection
+    Dim col As New Collection
+    Dim dict As Object: Set dict = CreateObject("Scripting.Dictionary")
+    dict.CompareMode = vbTextCompare
+
+    Dim lastR As Long: lastR = LastRow(wsK)
+    Dim r As Long
+    For r = 2 To lastR
+        Dim courseName As String
+        courseName = Trim$(CStr(wsK.Cells(r, 1).value))
+        If Len(courseName) > 0 Then
+            Dim key As String: key = NormalizeFuzzy(courseName)
+            If Not dict.Exists(key) Then
+                dict.Add key, True
+                col.Add courseName
+            End If
+        End If
+    Next r
+
+    Set LoadDistinctCourses = col
+End Function
+
+Private Function LoadCourseMetrics(ByVal wsK As Worksheet) As Object
+    Dim dict As Object: Set dict = CreateObject("Scripting.Dictionary")
+    dict.CompareMode = vbTextCompare
+
+    Dim lastR As Long: lastR = LastRow(wsK)
+    Dim r As Long
+    For r = 2 To lastR
+        Dim courseName As String, actLabel As String
+        courseName = Trim$(CStr(wsK.Cells(r, 1).value))
+        actLabel = Trim$(CStr(wsK.Cells(r, 2).value))
+        If Len(courseName) = 0 Or Len(actLabel) = 0 Then GoTo NextR
+
+        Dim cnt As Variant, pct As Variant
+        cnt = wsK.Cells(r, 3).value
+        pct = wsK.Cells(r, 4).value
+
+        Dim key As String
+        key = NormalizeFuzzy(courseName) & "|" & NormalizeFuzzy(actLabel)
+
+        dict(key) = Array(cnt, pct)
+NextR:
+    Next r
+
+    Set LoadCourseMetrics = dict
+End Function
+
+' =========================
+' PageBreaks + PrintArea oparte o nr_blk_XX_top
+' =========================
+Private Sub SetupPageBreaks_ByTopAnchors(ByVal wb As Workbook, ByVal ws As Worksheet, ByVal maxBlocks As Long)
+    On Error Resume Next
+    ws.ResetAllPageBreaks
+    On Error GoTo 0
+
+    Dim breaks As Variant
+    breaks = Array(2, 5, 8, 11, 14)
+
+    Dim i As Long, b As Long
+    For i = LBound(breaks) To UBound(breaks)
+        b = CLng(breaks(i))
+        If b >= 1 And b <= maxBlocks Then
+            Dim topCell As Range
+            Set topCell = GetNameRangeOrNothing(wb, "nr_blk_" & Format$(b, "00") & "_top")
+            If Not topCell Is Nothing Then
+                ws.HPageBreaks.Add Before:=ws.Rows(topCell.row)
+            End If
+        End If
+    Next i
+End Sub
+
+Private Sub SetPrintAreaToLastUsedBlock_ByTopAnchors(ByVal wb As Workbook, ByVal ws As Worksheet, ByVal nCourses As Long, ByVal maxBlocks As Long)
+    If nCourses < 1 Then
+        ws.PageSetup.PrintArea = ws.UsedRange.Address
+        Exit Sub
+    End If
+    If nCourses > maxBlocks Then nCourses = maxBlocks
+
+    Dim topLast As Range
+    Set topLast = GetNameRangeOrNothing(wb, "nr_blk_" & Format$(nCourses, "00") & "_top")
+    If topLast Is Nothing Then
+        ws.PageSetup.PrintArea = ws.UsedRange.Address
+        Exit Sub
+    End If
+
+    ' wysokość bloku: różnica top(2) - top(1) (stały układ)
+    Dim h As Long: h = GetBlockHeightFromAnchors(wb)
+    If h <= 0 Then
+        ws.PageSetup.PrintArea = ws.UsedRange.Address
+        Exit Sub
+    End If
+
+    Dim LastRow As Long
+    LastRow = topLast.row + h - 1
+
+    Dim lastCol As Long
+    lastCol = ws.UsedRange.Column + ws.UsedRange.Columns.Count - 1
+
+    ws.PageSetup.PrintArea = ws.Range(ws.Cells(1, 1), ws.Cells(LastRow, lastCol)).Address
+End Sub
+
+Private Function GetBlockRangeByTopAnchors(ByVal wb As Workbook, ByVal ws As Worksheet, ByVal blockNo As Long, ByVal maxBlocks As Long) As Range
+    Dim topCell As Range
+    Set topCell = GetNameRangeOrNothing(wb, "nr_blk_" & Format$(blockNo, "00") & "_top")
+    If topCell Is Nothing Then Exit Function
+
+    Dim h As Long: h = GetBlockHeightFromAnchors(wb)
+    If h <= 0 Then Exit Function
+
+    ' szerokość bierzemy z UsedRange kolumn (praktycznie cały blok jest w tym zakresie)
+    Dim w As Long
+    w = ws.UsedRange.Columns.Count
+    If w < 1 Then w = 30
+
+    Set GetBlockRangeByTopAnchors = ws.Range(topCell, topCell.Offset(h - 1, w - 1))
+End Function
+
+Private Function GetBlockHeightFromAnchors(ByVal wb As Workbook) As Long
+    Dim t1 As Range, t2 As Range
+    Set t1 = GetNameRangeOrNothing(wb, "nr_blk_01_top")
+    Set t2 = GetNameRangeOrNothing(wb, "nr_blk_02_top")
+    If t1 Is Nothing Or t2 Is Nothing Then Exit Function
+    GetBlockHeightFromAnchors = t2.row - t1.row
+End Function
+
+' =========================
+' NamedRanges: DANE_PERS -> workbook.Names
+' =========================
+Private Sub FillNamedRangesFromDanePers(ByVal templateWb As Workbook, ByVal danePersWs As Worksheet)
+    On Error GoTo EH
+
+    Dim lastR As Long: lastR = LastRow(danePersWs)
+    If lastR < 1 Then Exit Sub
+
+    Dim startRow As Long: startRow = 1
+    If LCase$(Trim$(CStr(danePersWs.Cells(1, 1).value))) = "name" Then startRow = 2
+
+    Dim r As Long
+    For r = startRow To lastR
+        Dim nm As String: nm = Trim$(CStr(danePersWs.Cells(r, 1).value))
+        If Len(nm) = 0 Then GoTo NextR
+
+        Dim v As Variant: v = danePersWs.Cells(r, 2).value
+        If NameExists(templateWb, nm) Then
+            On Error Resume Next
+            templateWb.names(nm).RefersToRange.value = v
+            If Err.Number <> 0 Then
+                LogLine "WARN: NamedRange set failed '" & nm & "' Err=" & Err.Number
+                Err.Clear
+            End If
+            On Error GoTo EH
+        End If
+NextR:
+    Next r
+    Exit Sub
+
+EH:
+    Err.Raise Err.Number, "FillNamedRangesFromDanePers", Err.Description
+End Sub
+
+Private Sub SafeSetNameValue(ByVal wb As Workbook, ByVal nm As String, ByVal v As Variant)
+    If Not NameExists(wb, nm) Then Exit Sub
+    On Error Resume Next
+    wb.names(nm).RefersToRange.value = v
+    On Error GoTo 0
+End Sub
+
+Private Function GetNameValueOrEmpty(ByVal wb As Workbook, ByVal nm As String) As Variant
+    On Error GoTo EH
+    If Not NameExists(wb, nm) Then Exit Function
+    GetNameValueOrEmpty = wb.names(nm).RefersToRange.value
+    Exit Function
+EH:
+    GetNameValueOrEmpty = Empty
+End Function
+
+Private Function NameExists(ByVal wb As Workbook, ByVal nameText As String) As Boolean
+    On Error GoTo EH
+    Dim n As Name
+    Set n = wb.names(nameText)
+    NameExists = True
+    Exit Function
+EH:
+    NameExists = False
+End Function
+
+Private Function GetNameRangeOrNothing(ByVal wb As Workbook, ByVal nm As String) As Range
+    On Error GoTo EH
+    If Not NameExists(wb, nm) Then Exit Function
+    Set GetNameRangeOrNothing = wb.names(nm).RefersToRange
+    Exit Function
+EH:
+End Function
+
+' =========================
+' Layout
+' =========================
+Private Sub ApplyLayout(ByVal ws As Worksheet)
+    With ws.PageSetup
+        .PaperSize = xlPaperA4
+        .Orientation = xlPortrait
+        .LeftMargin = Application.CentimetersToPoints(MARGIN_CM)
+        .RightMargin = Application.CentimetersToPoints(MARGIN_CM)
+        .TopMargin = Application.CentimetersToPoints(MARGIN_CM)
+        .BottomMargin = Application.CentimetersToPoints(MARGIN_CM)
+        .Zoom = False
+        .FitToPagesWide = 1
+        .FitToPagesTall = False
+    End With
+    ws.UsedRange.WrapText = True
+End Sub
+
+' =========================
+' PutValue / helpers
+' =========================
+Private Sub PutValueOrDash(ByVal tgt As Range, ByVal v As Variant, ByVal isPercent As Boolean)
+    If tgt Is Nothing Then Exit Sub
+
+    Dim area As Range
+    Set area = tgt.MergeArea
+
+    If IsEmpty(v) Or v = "" Then
+        area.NumberFormat = "General"
+        area.Cells(1, 1).value = "-"
+        Exit Sub
+    End If
+
+    If isPercent Then
+        Dim x As Double, s As String
+
+        If IsNumeric(v) Then
+            x = CDbl(v)
+        Else
+            s = Trim$(CStr(v))
+            s = Replace$(s, "%", "")
+            s = Replace$(s, Chr$(160), " ")
+            s = Replace$(s, " ", "")
+
+            If Application.DecimalSeparator = "," Then
+                s = Replace$(s, ".", ",")
+            Else
+                s = Replace$(s, ",", ".")
+            End If
+
+            If Not IsNumeric(s) Then
+                area.NumberFormat = "General"
+                area.Cells(1, 1).value = "-"
+                Exit Sub
+            End If
+            x = CDbl(s)
+        End If
+
+        If x > 1# Then x = x / 100#
+        area.Cells(1, 1).value = x
+        area.NumberFormat = PERCENT_FORMAT
+    Else
+        If IsNumeric(v) Then
+            area.Cells(1, 1).value = CDbl(v)
+            area.NumberFormat = "General"
+        Else
+            area.NumberFormat = "General"
+            area.Cells(1, 1).value = "-"
+        End If
+    End If
+End Sub
+
+Private Function FindNextValueCellRight(ByVal fromArea As Range) As Range
+    ' Szuka pierwszej "sensownej" komórki na prawo od etykiety, w tym samym wierszu.
+    ' Obsługa scaleń: przechodzimy po kolumnach od końca mergeArea.
+    Dim ws As Worksheet: Set ws = fromArea.Worksheet
+    Dim r As Long: r = fromArea.row
+    Dim startCol As Long: startCol = fromArea.Column + fromArea.Columns.Count
+
+    Dim c As Long
+    For c = startCol To ws.Columns.Count
+        Dim cc As Range: Set cc = ws.Cells(r, c)
+        Dim ma As Range: Set ma = MergeAreaOrSelf(cc)
+
+        ' pomijamy jeśli to ewidentny tekst-nagłówek
+        Dim t As String: t = Trim$(CStr(ma.Cells(1, 1).value))
+        If NormalizeFuzzy(t) Like "*rodzaj udostepnionej*" Then GoTo NextC
+        If NormalizeFuzzy(t) Like "*ilosc*" Then GoTo NextC
+        If InStr(1, t, "%", vbTextCompare) > 0 And InStr(1, NormalizeFuzzy(t), "skali", vbTextCompare) > 0 Then GoTo NextC
+
+        Set FindNextValueCellRight = ma
+        Exit Function
+NextC:
+    Next c
+End Function
+
+Private Function MergeAreaOrSelf(ByVal c As Range) As Range
+    If c.MergeCells Then
+        Set MergeAreaOrSelf = c.MergeArea
+    Else
+        Set MergeAreaOrSelf = c
+    End If
+End Function
+
+Private Function IsNumericLike(ByVal s As String) As Boolean
+    Dim t As String
+    t = Replace$(s, "%", "")
+    t = Replace$(t, " ", "")
+    t = Replace$(t, Chr$(160), "")
+    If Len(t) = 0 Then Exit Function
+    If Application.DecimalSeparator = "," Then
+        t = Replace$(t, ".", ",")
+    Else
+        t = Replace$(t, ",", ".")
+    End If
+    IsNumericLike = IsNumeric(t)
+End Function
+
+Private Function NormalizeFuzzy(ByVal s As String) As String
+    s = Replace$(s, vbCr, " ")
+    s = Replace$(s, vbLf, " ")
+    s = Replace$(s, Chr$(160), " ")
+    s = Trim$(Application.WorksheetFunction.Trim(s))
+    s = LCase$(s)
+    s = ReplacePolish(s)
+    NormalizeFuzzy = s
+End Function
+
+Private Function ReplacePolish(ByVal s As String) As String
+    s = Replace$(s, "ą", "a")
+    s = Replace$(s, "ć", "c")
+    s = Replace$(s, "ę", "e")
+    s = Replace$(s, "ł", "l")
+    s = Replace$(s, "ń", "n")
+    s = Replace$(s, "ó", "o")
+    s = Replace$(s, "ś", "s")
+    s = Replace$(s, "ż", "z")
+    s = Replace$(s, "ź", "z")
+    ReplacePolish = s
+End Function
+
+' =========================
+' Tools: sheets, picker, folder, lastrow, sanitize
+' =========================
+Private Function GetWsOrNothing(ByVal wb As Workbook, ByVal wsName As String) As Worksheet
+    On Error Resume Next
+    Set GetWsOrNothing = wb.Worksheets(wsName)
+    On Error GoTo 0
+End Function
+
+Private Function PickReportTemplate() As String
+    Dim fd As FileDialog
+    Set fd = Application.FileDialog(msoFileDialogFilePicker)
+    With fd
+        .title = "Wskaż plik wzoru raportu (.xlsx)"
+        .Filters.Clear
+        .Filters.Add "Excel", "*.xlsx"
+        .AllowMultiSelect = False
+        If .Show = -1 Then PickReportTemplate = .SelectedItems(1)
+    End With
+End Function
+
+Private Function PickSourceFolder() As String
+    Dim fd As FileDialog
+    Set fd = Application.FileDialog(msoFileDialogFolderPicker)
+    With fd
+        .title = "Wybierz folder z plikami źródłowymi (.xlsx)"
+        If .Show = -1 Then PickSourceFolder = .SelectedItems(1)
+    End With
+End Function
+
+Private Sub EnsureFolder(ByVal path As String)
+    Dim fso As Object
+    If Len(path) = 0 Then Exit Sub
+    If Right$(path, 1) = "\" Then path = Left$(path, Len(path) - 1)
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If Not fso.FolderExists(path) Then fso.CreateFolder path
+End Sub
+
+Private Function SanitizeFileName(ByVal s As String) As String
+    Dim bad: bad = Array("/", "\", ":", "*", "?", """", "<", ">", "|")
+    Dim i As Long
+    For i = LBound(bad) To UBound(bad)
+        s = Replace$(s, bad(i), "-")
+    Next i
+    SanitizeFileName = s
+End Function
+
+Private Function LastRow(ByVal ws As Worksheet) As Long
+    LastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).row
+End Function
+
+Private Function ParentFolderWithBackslash(ByVal folderPath As String) As String
+    Dim p As String: p = folderPath
+    If Right$(p, 1) = "\" Then p = Left$(p, Len(p) - 1)
+    Dim i As Long: i = InStrRev(p, "\")
+    If i > 0 Then ParentFolderWithBackslash = Left$(p, i)
+End Function
+
+' =========================
+' Logging
+' =========================
+
+
+Private Sub LogOpen(ByVal path As String)
+    mLogPath = path
+    mLogFile = FreeFile
+    Open mLogPath For Output As #mLogFile
+    Print #mLogFile, "LOG " & Now
+End Sub
+
+Private Sub LogLine(ByVal s As String)
+    On Error Resume Next
+    If mLogFile <> 0 Then Print #mLogFile, Format$(Now, "hh:nn:ss") & " | " & s
+    On Error GoTo 0
+End Sub
+
+Private Sub LogClose()
+    On Error Resume Next
+    If mLogFile <> 0 Then Close #mLogFile
+    mLogFile = 0
+    On Error GoTo 0
+End Sub
+
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: modNA_Launcher  [Standard Module]
+================================================================================
+' === modNA_Launcher ===
+Option Explicit
+
+' ---------------------------
+' Konfiguracja / stałe
+' ---------------------------
+Private Const PROGRESS_INTERVAL_SEC As Double = 1# / 86400#   ' 1 sek (Date = dni)
+Private Const PROGRESS_FILE As String = "_run\progress.jsonl"
+Private Const RUN_LOG As String = "_run\run.log"
+
+Private Const OUT_INDY As String = "_out\indywidualne\"
+Private Const OUT_PDF As String = "_out\pdf\"
+Private Const RUN_DIR As String = "_run\"
+
+' Uwaga: ustaw to na nazwę pliku exe jeśli dystrybuujesz PyInstaller
+Private Const PIPE_EXE As String = "mrna-plum.exe"  ' albo np. "mrna_plum_cli.exe"
+
+' ---------------------------
+' Stan pipeline (globalny)
+' ---------------------------
+Private Type TStep
+    Name As String
+    Cmd As String
+End Type
+
+Private gSteps() As TStep
+Private gStepIndex As Long
+Private gStepStart As Date
+
+Private gWsh As Object          ' WScript.Shell
+Private gExec As Object         ' WshScriptExec
+Private gNextOnTime As Date
+Private gMonitoring As Boolean
+Private gRoot As String
+
+' ---------------------------
+' PUBLIC: wymagane przez Ciebie
+' ---------------------------
+Public Function RunPython(ByVal cmdLine As String) As Long
+    ' Blokujące oczekiwanie (UWAGA: zamrozi UI na czas działania procesu).
+    ' Dobre do krótkich komend / testów, ale nie do długiego pipeline.
+    Dim sh As Object
+    Set sh = CreateObject("WScript.Shell")
+
+    ' 0 = hidden window, True = wait
+    ' cmdLine MUSI zawierać pełne cudzysłowy dla ścieżek ze spacjami.
+    RunPython = sh.Run(cmdLine, 0, True)
+End Function
+
+' ---------------------------
+' PUBLIC: uruchomienie całości z UserForm
+' ---------------------------
+Public Sub StartPipeline()
+    On Error GoTo EH
+
+    gRoot = ThisWorkbook.path
+    EnsureFolders
+    If dir$(gRoot & "\" & PIPE_EXE) = vbNullString Then
+        Err.Raise vbObjectError + 701, "StartPipeline", "Nie znaleziono pliku EXE: " & gRoot & "\" & PIPE_EXE
+    End If
+
+    If dir$(gRoot & "\config.yaml") = vbNullString Then
+        Err.Raise vbObjectError + 702, "StartPipeline", "Nie znaleziono pliku config.yaml: " & gRoot & "\config.yaml"
+    End If
+    InitSteps
+
+    ' wyczyść artefakty run
+    SafeKillFile gRoot & "\" & RUN_LOG
+    SafeKillFile gRoot & "\" & gRootRel(PROGRESS_FILE)
+    ClearOkFlags
+
+    AppendLog "=== START PIPELINE: " & Format(Now, "yyyy-mm-dd hh:nn:ss") & " ==="
+
+    Set gWsh = CreateObject("WScript.Shell")
+    gWsh.CurrentDirectory = gRoot
+    gStepIndex = 0
+
+    ' UI: zablokuj przyciski / ustaw status startowy
+    UI_SetRunning True
+    UI_SetStatus "Start pipeline..."
+
+    StartNextStep
+    Exit Sub
+
+EH:
+    PipelineFail "StartPipeline error: " & Err.Number & " - " & Err.Description
+End Sub
+
+' ---------------------------
+' Pipeline core (asynchroniczny, bez freeze UI)
+' ---------------------------
+Private Sub InitSteps()
+    ReDim gSteps(0 To 5) As TStep
+
+    gSteps(0).Name = "merge-logs"
+    gSteps(0).Cmd = StepCmd("merge-logs")
+
+    gSteps(1).Name = "parse-events"
+    gSteps(1).Cmd = StepCmd("parse-events")
+
+    gSteps(2).Name = "build-activities-state"
+    gSteps(2).Cmd = StepCmd("build-activities-state")
+
+    gSteps(3).Name = "compute-stats"
+    gSteps(3).Cmd = StepCmd("compute-stats")
+
+    gSteps(4).Name = "export-excel"
+    gSteps(4).Cmd = StepCmd("export-excel")
+
+    gSteps(5).Name = "export-individual"
+    gSteps(5).Cmd = StepCmd("export-individual")
+End Sub
+
+Private Function StepCmd(ByVal stepName As String) As String
+    Dim exePath As String, cfgPath As String, logPath As String
+    exePath = Quote(gRoot & "\" & PIPE_EXE)
+    cfgPath = Quote(gRoot & "\config.yaml")
+    logPath = Quote(gRoot & "\" & RUN_LOG)
+
+    Dim inputsDir As String
+    inputsDir = UF_Text(raporty_plum, "txtInputsDir")
+
+    Dim extraArgs As String
+    extraArgs = ""
+
+    ' parse-events: KEYS override z UI
+    If LCase$(stepName) = "parse-events" Then
+        Dim keysXlsx As String
+        keysXlsx = UF_Text(raporty_plum, "txtKeysXlsx")
+        If Len(keysXlsx) > 0 Then
+            extraArgs = extraArgs & " --keys-xlsx " & Quote(keysXlsx)
+        End If
+    End If
+
+    ' build-activities-state: snapshot-file z UI (KRYTYCZNE) + fallback inputs-dir
+    If LCase$(stepName) = "build-activities-state" Then
+        Dim snapPath As String
+        snapPath = UF_Text(raporty_plum, "txtSnapshotFile")
+
+        If Len(snapPath) > 0 Then
+            extraArgs = extraArgs & " --snapshot-file " & Quote(snapPath)
+        ElseIf Len(inputsDir) > 0 Then
+            extraArgs = extraArgs & " --inputs-dir " & Quote(inputsDir)
+        Else
+            Err.Raise vbObjectError + 513, "StepCmd", _
+                "Brak danych wejściowych dla build-activities-state." & vbCrLf & _
+                "Uzupełnij txtSnapshotFile lub txtInputsDir."
+        End If
+    End If
+
+    ' export-excel / export-individual: inputs-dir
+    If LCase$(stepName) = "export-excel" Or LCase$(stepName) = "export-individual" Then
+        If Len(inputsDir) > 0 Then
+            extraArgs = extraArgs & " --inputs-dir " & Quote(inputsDir)
+        End If
+    End If
+    
+    ' >>> DODAJ TEN BLOK W StepCmd (obok innych per-step bloków) <<<
+    If LCase$(stepName) = "merge-logs" Then
+        If Len(inputsDir) > 0 Then
+            extraArgs = extraArgs & " --inputs-dir " & Quote(inputsDir)
+        End If
+    End If
+    
+    ' export-individual: out-dir
+    If LCase$(stepName) = "export-individual" Then
+        Dim outDir As String
+        outDir = gRoot & "\" & OUT_INDY
+        If Right$(outDir, 1) = "\" Then outDir = Left$(outDir, Len(outDir) - 1)
+        extraArgs = extraArgs & " --out-dir " & Quote(outDir)
+    End If
+
+    Dim inner As String
+    inner = "chcp 65001>nul" & _
+            " & cd /d " & Quote(gRoot) & _
+            " & " & exePath & " " & stepName & _
+            " --root " & Quote(gRoot) & _
+            " --config " & cfgPath & _
+            extraArgs & _
+            " >> " & logPath & " 2>&1"
+
+    ' UWAGA: dokładnie JEDNA para cudzysłowów po /c
+    StepCmd = "cmd.exe /c " & Quote(inner)
+End Function
+
+Private Sub StartNextStep()
+    On Error GoTo EH
+
+    If gStepIndex > UBound(gSteps) Then
+        ' Python zakończony -> integracja PDF
+        AppendLog "=== PYTHON PIPELINE OK ==="
+        UI_SetStatus "Python OK. Sprawdzam pliki indywidualne..."
+
+        If Not HasAnyFiles(gRoot & "\" & OUT_INDY, "*.xlsx") Then
+            PipelineFail "Brak plików w " & OUT_INDY & " — nie generuję PDF."
+            Exit Sub
+        End If
+
+        UI_SetStatus "Generuję PDF (VBA)..."
+        AppendLog "=== START PDF ENGINE ==="
+
+                ' === PDF ENGINE (BATCH, bez klikania) ===
+        Dim cfg As Object
+        Set cfg = CreateObject("Scripting.Dictionary")
+
+        Dim templatePath As String
+        On Error Resume Next
+        templatePath = Trim$(raporty_plum.txtTemplateXlsx.text)
+        On Error GoTo EH
+
+        If Len(templatePath) = 0 Then
+            PipelineFail "Brak ścieżki do wzoru raportu. Uzupełnij raporty_plum.txtTemplateXlsx."
+            Exit Sub
+        End If
+        If dir$(templatePath) = vbNullString Then
+            PipelineFail "Nie znaleziono wzoru raportu: " & templatePath
+            Exit Sub
+        End If
+
+        cfg("root") = gRoot
+        cfg("in_indywidualne") = gRoot & "\" & OUT_INDY
+        cfg("out_pdf") = gRoot & "\" & OUT_PDF
+        cfg("run_dir") = gRoot & "\" & RUN_DIR
+        cfg("template_path") = templatePath
+
+        ' Nazwy arkuszy zgodne z silnikiem i Twoimi stałymi w modNA_PdfEngine:
+        cfg("sheet_dane_pers") = "DANE_PERS"
+        cfg("sheet_dane_kursy") = "DANE_KURSY"
+        cfg("sheet_report") = "Raport_NA"
+
+        cfg("max_blocks") = 16
+        cfg("truncate_overflow") = True
+
+        AppendLog "=== START PDF ENGINE (BATCH) ==="
+        Call modPdfEngine.PdfEngine_RunBatch(cfg)
+        AppendLog "=== PDF ENGINE OK ==="
+        UI_SetStatus "Zakończono poprawnie."
+        UI_SetRunning False
+        StopMonitor
+        Exit Sub
+    End If
+
+    Dim stepName As String
+    stepName = gSteps(gStepIndex).Name
+
+    UI_SetStatus "Krok " & (gStepIndex + 1) & "/" & (UBound(gSteps) + 1) & ": " & stepName
+    AppendLog "--- STEP START: " & stepName & " @ " & Format(Now, "yyyy-mm-dd hh:nn:ss")
+    AppendLog "CMD: " & gSteps(gStepIndex).Cmd
+    gStepStart = Now
+
+    ' Exec -> nie blokuje UI; monitorujemy Status w OnTime
+    Set gExec = gWsh.Exec(gSteps(gStepIndex).Cmd)
+
+    StartMonitor
+    Exit Sub
+
+EH:
+    PipelineFail "StartNextStep error: " & Err.Number & " - " & Err.Description
+End Sub
+
+' ---------------------------
+' Monitor progress.jsonl + status procesu
+' ---------------------------
+Private Sub StartMonitor()
+    gMonitoring = True
+    ScheduleMonitor Now + PROGRESS_INTERVAL_SEC
+End Sub
+
+Private Sub ScheduleMonitor(ByVal whenTime As Date)
+    On Error Resume Next
+    gNextOnTime = whenTime
+    Application.OnTime earliesttime:=gNextOnTime, procedure:="modNA_Launcher.MonitorProgress", schedule:=True
+    On Error GoTo 0
+End Sub
+
+Public Sub MonitorProgress()
+    On Error GoTo EH
+
+    If Not gMonitoring Then Exit Sub
+
+    ' 1) update UI z ostatniej linii progress.jsonl
+    UpdateUIFromProgress
+
+    ' 2) sprawdzamy proces
+    If Not gExec Is Nothing Then
+        ' Status: 0=Running, 1=Finished
+        If CLng(gExec.Status) = 1 Then
+            Dim exitCode As Long
+            exitCode = CLng(gExec.exitCode)
+
+            Dim stepName As String
+            stepName = gSteps(gStepIndex).Name
+
+            AppendLog "--- STEP END: " & stepName & _
+                      " exit=" & exitCode & _
+                      " dur=" & FormatDuration(Now - gStepStart) & _
+                      " @ " & Format(Now, "yyyy-mm-dd hh:nn:ss")
+
+            If exitCode <> 0 Then
+                Dim tail As String
+                tail = ReadLastLines(gRoot & "\" & RUN_LOG, 10)
+                PipelineFail "Krok '" & stepName & "' zakończony błędem exit=" & exitCode & vbCrLf & vbCrLf & _
+                             "Ostatnie linie logu:" & vbCrLf & tail
+                Exit Sub
+            End If
+
+            ' zapis <step>.ok
+            WriteTextFile gRoot & "\" & RUN_DIR & stepName & ".ok", _
+                "ok " & Format(Now, "yyyy-mm-dd hh:nn:ss") & " dur=" & FormatDuration(Now - gStepStart)
+
+            ' kolejny krok
+            Set gExec = Nothing
+            gStepIndex = gStepIndex + 1
+            StartNextStep
+            Exit Sub
+        End If
+    End If
+
+    ' jeśli nadal działa -> planuj kolejny tick
+    ScheduleMonitor Now + PROGRESS_INTERVAL_SEC
+    Exit Sub
+
+EH:
+    PipelineFail "MonitorProgress error: " & Err.Number & " - " & Err.Description
+End Sub
+
+Private Sub StopMonitor()
+    On Error Resume Next
+    gMonitoring = False
+    If gNextOnTime <> 0 Then
+        Application.OnTime earliesttime:=gNextOnTime, procedure:="modNA_Launcher.MonitorProgress", schedule:=False
+    End If
+    On Error GoTo 0
+End Sub
+
+' ---------------------------
+' UI helpers (podłącz do UserForm)
+' ---------------------------
+Private Sub UI_SetRunning(ByVal running As Boolean)
+    On Error Resume Next
+    With raporty_plum
+        .btnStart.enabled = Not running
+    End With
+    On Error GoTo 0
+End Sub
+
+Private Sub UI_SetStatus(ByVal msg As String)
+    On Error Resume Next
+    raporty_plum.LabelStatus.caption = msg
+    On Error GoTo 0
+End Sub
+
+Private Sub UI_SetProgress(ByVal pct As Double, ByVal msg As String)
+    On Error Resume Next
+    With raporty_plum
+        .LabelStatus.caption = msg
+        ' ProgressBar jako Label w Frame: LabelBar.Width = Frame.Width * pct
+        If pct < 0 Then pct = 0
+        If pct > 1 Then pct = 1
+        .LabelBar.Width = .FrameBar.Width * pct
+        .LabelPct.caption = Format(pct, "0%")
+    End With
+    On Error GoTo 0
+End Sub
+
+' ---------------------------
+' Progress.jsonl parsing
+' Zakładamy, że python dopisuje linie np:
+' {"step":"parse-events","pct":0.34,"msg":"Parsing..."}
+' ---------------------------
+Private Sub UpdateUIFromProgress()
+    Dim p As String
+    p = gRoot & "\" & gRootRel(PROGRESS_FILE)
+    If dir(p) = vbNullString Then Exit Sub
+
+    Dim line As String
+    line = ReadLastNonEmptyLine(p)
+    If Len(line) = 0 Then Exit Sub
+
+    Dim stepName As String, msg As String
+    Dim pct As Double
+
+    stepName = JsonGetString(line, "step")
+
+    msg = JsonGetString(line, "message")
+    If Len(msg) = 0 Then msg = JsonGetString(line, "msg")
+
+    pct = JsonGetNumber(line, "pct")
+
+    Dim cur As Double, tot As Double
+    cur = JsonGetNumber(line, "current")
+    tot = JsonGetNumber(line, "total")
+
+' pct fallback z current/total tylko jeśli pct nieobecne (u Ciebie JsonGetNumber zwykle zwraca 0)
+' więc rozróżniamy: jeśli tot>0 i cur>=0 i pct=0, to i tak policz (bo to poprawne 0..1)
+    If tot > 0 Then
+        If pct = 0# Then
+            pct = cur / tot
+        End If
+    End If
+
+    If Len(msg) = 0 Then msg = stepName
+
+' Fallback na "percent" (0..100) tylko jeśli nadal nie mamy sensownego pct i percent > 0
+    If pct = 0# Then
+        Dim pct100 As Double
+        pct100 = JsonGetNumber(line, "percent")
+        If pct100 > 1# Then
+            pct = pct100 / 100#
+        ElseIf pct100 > 0# Then
+            pct = pct100
+        End If
+    End If
+
+' clamp 0..1
+    If pct < 0# Then pct = 0#
+    If pct > 1# Then pct = 1#
+
+    ' UI
+    UI_SetProgress pct, msg
+End Sub
+
+Private Function JsonGetString(ByVal jsonLine As String, ByVal key As String) As String
+    ' minimalistycznie: szukamy "key":"value"
+    Dim pat As String, p As Long, q1 As Long, q2 As Long
+    pat = """" & key & """:"
+    p = InStr(1, jsonLine, pat, vbTextCompare)
+    If p = 0 Then Exit Function
+
+    q1 = InStr(p + Len(pat), jsonLine, """")
+    If q1 = 0 Then Exit Function
+    q2 = InStr(q1 + 1, jsonLine, """")
+    If q2 = 0 Then Exit Function
+
+    JsonGetString = Mid$(jsonLine, q1 + 1, q2 - q1 - 1)
+End Function
+
+Private Function JsonGetNumber(ByVal jsonLine As String, ByVal key As String) As Double
+    Dim pat As String, p As Long, i As Long, ch As String, buf As String
+    pat = """" & key & """:"
+    p = InStr(1, jsonLine, pat, vbTextCompare)
+    If p = 0 Then Exit Function
+
+    i = p + Len(pat)
+    ' pomiń spacje
+    Do While i <= Len(jsonLine) And Mid$(jsonLine, i, 1) = " "
+        i = i + 1
+    Loop
+
+    Do While i <= Len(jsonLine)
+        ch = Mid$(jsonLine, i, 1)
+        If (ch Like "[0-9]") Or ch = "." Or ch = "-" Then
+            buf = buf & ch
+            i = i + 1
+        Else
+            Exit Do
+        End If
+    Loop
+
+    If Len(buf) = 0 Then Exit Function
+    JsonGetNumber = CDbl(Replace(buf, ",", "."))
+End Function
+
+' ---------------------------
+' Logging / pliki / utilsy
+' ---------------------------
+Private Sub PipelineFail(ByVal message As String)
+    AppendLog "!!! PIPELINE FAIL: " & message
+    StopMonitor
+    UI_SetRunning False
+    UI_SetStatus "BŁĄD: zobacz run.log"
+
+    MsgBox message, vbCritical, "mRNA-PLUM Pipeline"
+End Sub
+
+Private Sub AppendLog(ByVal s As String)
+    WriteTextFile gRoot & "\" & RUN_LOG, s & vbCrLf, True
+End Sub
+
+Private Sub WriteTextFile(ByVal fullPath As String, ByVal text As String, Optional ByVal append As Boolean = False)
+    Dim fso As Object, ts As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+
+    EnsureFolderExists fso.GetParentFolderName(fullPath)
+
+    If append And fso.FileExists(fullPath) Then
+        Set ts = fso.OpenTextFile(fullPath, 8, True, -1) ' ForAppending, Unicode
+    Else
+        Set ts = fso.OpenTextFile(fullPath, 2, True, -1) ' ForWriting, Unicode
+    End If
+
+    ts.Write text
+    ts.Close
+End Sub
+
+Private Function ReadLastLines(ByVal fullPath As String, ByVal n As Long) As String
+    ' prosto i bezpiecznie: czytamy cały plik tylko dla tail (run.log zwykle nie jest ogromny)
+    On Error GoTo EH
+
+    Dim fso As Object, ts As Object, allText As String, arr() As String
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If Not fso.FileExists(fullPath) Then Exit Function
+
+    Set ts = fso.OpenTextFile(fullPath, 1, False, -1) ' ForReading, Unicode
+    allText = ts.ReadAll
+    ts.Close
+
+    arr = Split(Replace(allText, vbCrLf, vbLf), vbLf)
+
+    Dim i As Long, startI As Long, buf As String
+    startI = UBound(arr) - n + 1
+    If startI < 0 Then startI = 0
+
+    For i = startI To UBound(arr)
+        If Len(arr(i)) > 0 Then buf = buf & arr(i) & vbCrLf
+    Next
+
+    ReadLastLines = buf
+    Exit Function
+
+EH:
+    ReadLastLines = "(nie udało się odczytać tail logu: " & Err.Description & ")"
+End Function
+
+Private Function ReadLastNonEmptyLine(ByVal fullPath As String) As String
+    On Error GoTo EH
+
+    Dim fso As Object, ts As Object, allText As String, arr() As String
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If Not fso.FileExists(fullPath) Then Exit Function
+
+    Set ts = fso.OpenTextFile(fullPath, 1, False, -1)
+    allText = ts.ReadAll
+    ts.Close
+
+    arr = Split(Replace(allText, vbCrLf, vbLf), vbLf)
+
+    Dim i As Long
+    For i = UBound(arr) To 0 Step -1
+        If Len(Trim$(arr(i))) > 0 Then
+            ReadLastNonEmptyLine = Trim$(arr(i))
+            Exit Function
+        End If
+    Next i
+    Exit Function
+
+EH:
+    ' ignoruj
+End Function
+
+Private Function HasAnyFiles(ByVal folderPath As String, ByVal pattern As String) As Boolean
+    Dim p As String
+    p = folderPath
+    If Right$(p, 1) <> "\" Then p = p & "\"
+    HasAnyFiles = (dir(p & pattern) <> vbNullString)
+End Function
+
+Private Sub EnsureFolders()
+    EnsureFolderExists gRoot & "\" & RUN_DIR
+    EnsureFolderExists gRoot & "\" & OUT_INDY
+    EnsureFolderExists gRoot & "\" & OUT_PDF
+End Sub
+
+Private Sub EnsureFolderExists(ByVal folderPath As String)
+    Dim fso As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If Len(folderPath) = 0 Then Exit Sub
+    If Not fso.FolderExists(folderPath) Then fso.CreateFolder folderPath
+End Sub
+
+Private Sub SafeKillFile(ByVal fullPath As String)
+    On Error Resume Next
+    If Len(dir(fullPath)) > 0 Then Kill fullPath
+    On Error GoTo 0
+End Sub
+
+Private Sub ClearOkFlags()
+    On Error Resume Next
+    Dim f As String
+    f = dir(gRoot & "\" & RUN_DIR & "*.ok")
+    Do While Len(f) > 0
+        Kill gRoot & "\" & RUN_DIR & f
+        f = dir()
+    Loop
+    On Error GoTo 0
+End Sub
+
+Private Function FormatDuration(ByVal dtDays As Double) As String
+    Dim totalSec As Long
+    totalSec = CLng(dtDays * 86400#)
+    FormatDuration = (totalSec \ 60) & "m " & (totalSec Mod 60) & "s"
+End Function
+
+Private Function Quote(ByVal s As String) As String
+    Quote = """" & s & """"
+End Function
+
+Private Function gRootRel(ByVal rel As String) As String
+    gRootRel = rel
+    If Left$(gRootRel, 1) = "\" Then gRootRel = Mid$(gRootRel, 2)
+End Function
+Private Function UF_Text(ByVal formObj As Object, ByVal ctrlName As String) As String
+    ' Bezpiecznie pobiera .Text z kontrolki UserForm po nazwie.
+    ' Zwraca "" jeśli kontrolka nie istnieje.
+    On Error GoTo EH
+    Dim ctl As Object
+    Set ctl = CallByName(formObj, ctrlName, VbGet)
+    UF_Text = Trim$(CStr(CallByName(ctl, "Text", VbGet)))
+    Exit Function
+EH:
+    UF_Text = ""
+End Function
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: modNA_UIInputs  [Standard Module]
+================================================================================
+Option Explicit
+
+Private Const KEYS_REL As String = "_data\KEYS.xlsx"
+
+Public Sub UI_LoadDefaults()
+    On Error Resume Next
+    With raporty_plum
+        .txtLogsFolder.text = GetSetting("mRNA-PLUM", "Paths", "LogsFolder", "")
+        .txtTemplateXlsx.text = ""
+        .txtKeysXlsx.text = GetSetting("mRNA-PLUM", "Paths", "KeysXlsx", ThisWorkbook.path & "\_data\KEYS.xlsx")
+    End With
+    On Error GoTo 0
+End Sub
+
+Public Sub UI_SaveDefaults()
+    On Error Resume Next
+    SaveSetting "mRNA-PLUM", "Paths", "LogsFolder", raporty_plum.txtLogsFolder.text
+    SaveSetting "mRNA-PLUM", "Paths", "KeysXlsx", raporty_plum.txtKeysXlsx.text
+    On Error GoTo 0
+End Sub
+
+Public Function UI_ValidateInputs(ByRef errMsg As String) As Boolean
+
+    Dim logsFolder As String, templateXlsx As String, keysXlsx As String
+    logsFolder = Trim$(raporty_plum.txtLogsFolder.text)
+    templateXlsx = Trim$(raporty_plum.txtTemplateXlsx.text)
+    keysXlsx = Trim$(raporty_plum.txtKeysXlsx.text)
+
+    If Len(logsFolder) = 0 Then errMsg = "Nie wskazano folderu z logami.": Exit Function
+    If Not FolderExists(logsFolder) Then errMsg = "Folder logów nie istnieje: " & logsFolder: Exit Function
+
+    If Len(keysXlsx) = 0 Then errMsg = "Nie wskazano pliku KEYS.xlsx.": Exit Function
+    If Not FileExists(keysXlsx) Then errMsg = "Plik KEYS.xlsx nie istnieje: " & keysXlsx: Exit Function
+
+    If Len(templateXlsx) = 0 Then errMsg = "Nie wskazano wzoru raportu (template).": Exit Function
+    If Not FileExists(templateXlsx) Then errMsg = "Wzór raportu nie istnieje: " & templateXlsx: Exit Function
+
+    UI_ValidateInputs = True
+
+End Function
+
+Public Function BuildRuntimeConfigYaml(ByVal rootPath As String) As String
+    Dim cfgPath As String
+    cfgPath = rootPath & "\_run\config.runtime.yaml"
+
+    Dim logsFolder As String, templateXlsx As String, keysXlsx As String
+    logsFolder = NormalizePath(raporty_plum.txtLogsFolder.text)
+    templateXlsx = NormalizePath(raporty_plum.txtTemplateXlsx.text)
+    keysXlsx = rootPath & "\" & KEYS_REL
+
+    EnsureFolder rootPath & "\_run"
+    EnsureFolder rootPath & "\_out"
+    EnsureFolder rootPath & "\_out\indywidualne"
+    EnsureFolder rootPath & "\_out\pdf"
+
+    Dim y As String
+    y = ""
+    y = y & "root: """ & YamlEscape(rootPath) & """" & vbCrLf
+
+    y = y & "data:" & vbCrLf
+    y = y & "  logs_dir: """ & YamlEscape(logsFolder) & """" & vbCrLf
+    y = y & "  logs_recursive: true" & vbCrLf ' <— ważne: folder + podfoldery
+
+    y = y & "run:" & vbCrLf
+    y = y & "  dir: """ & YamlEscape(rootPath & "\_run") & """" & vbCrLf
+
+    y = y & "out:" & vbCrLf
+    y = y & "  indywidualne_dir: """ & YamlEscape(rootPath & "\_out\indywidualne") & """" & vbCrLf
+    y = y & "  pdf_dir: """ & YamlEscape(rootPath & "\_out\pdf") & """" & vbCrLf
+
+    y = y & "parse_events:" & vbCrLf
+    y = y & "  keys_xlsx: """ & YamlEscape(keysXlsx) & """" & vbCrLf
+    y = y & "  keys_sheet: ""KEYS""" & vbCrLf
+
+    y = y & "pdf:" & vbCrLf
+    y = y & "  template_xlsx: """ & YamlEscape(templateXlsx) & """" & vbCrLf
+
+    WriteTextFileUtf8 cfgPath, y
+    BuildRuntimeConfigYaml = cfgPath
+End Function
+
+' --- dialogi i utils (zostają z poprzedniej wersji) ---
+Public Function PickFolderDialog(ByVal title As String, Optional ByVal initialPath As String = "") As String
+    On Error GoTo EH
+    Dim fd As Object
+    Set fd = Application.FileDialog(4)
+    fd.title = title
+    If Len(initialPath) > 0 Then fd.InitialFileName = EnsureTrailingBackslash(initialPath)
+    fd.AllowMultiSelect = False
+    If fd.Show <> -1 Then Exit Function
+    PickFolderDialog = CStr(fd.SelectedItems(1))
+    Exit Function
+EH:
+    PickFolderDialog = ""
+End Function
+
+Public Function PickFileDialog(ByVal title As String, ByVal filterDesc As String, ByVal filterPattern As String, Optional ByVal initialPath As String = "") As String
+    On Error GoTo EH
+    Dim fd As Object
+    Set fd = Application.FileDialog(3)
+    fd.title = title
+    fd.AllowMultiSelect = False
+    fd.Filters.Clear
+    fd.Filters.Add filterDesc, filterPattern
+    If Len(initialPath) > 0 Then fd.InitialFileName = initialPath
+    If fd.Show <> -1 Then Exit Function
+    PickFileDialog = CStr(fd.SelectedItems(1))
+    Exit Function
+EH:
+    PickFileDialog = ""
+End Function
+
+Private Function FileExists(ByVal p As String) As Boolean: FileExists = (Len(dir(p)) > 0): End Function
+Private Function FolderExists(ByVal p As String) As Boolean
+    On Error Resume Next
+    FolderExists = (Len(dir(p, vbDirectory)) > 0)
+    On Error GoTo 0
+End Function
+
+Private Sub EnsureFolder(ByVal folderPath As String)
+    Dim fso As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If Not fso.FolderExists(folderPath) Then fso.CreateFolder folderPath
+End Sub
+
+Private Function EnsureTrailingBackslash(ByVal p As String) As String
+    If Len(p) = 0 Then EnsureTrailingBackslash = "": Exit Function
+    If Right$(p, 1) = "\" Then EnsureTrailingBackslash = p Else EnsureTrailingBackslash = p & "\"
+End Function
+
+Private Function NormalizePath(ByVal p As String) As String
+    NormalizePath = Replace(Trim$(p), "/", "\")
+End Function
+
+Private Function YamlEscape(ByVal s As String) As String
+    YamlEscape = Replace(s, """", "\""")
+End Function
+
+Private Sub WriteTextFileUtf8(ByVal fullPath As String, ByVal text As String)
+    Dim stm As Object
+    Set stm = CreateObject("ADODB.Stream")
+    stm.Type = 2
+    stm.Charset = "utf-8"
+    stm.Open
+    stm.WriteText text
+    stm.Position = 0
+    stm.SaveToFile fullPath, 2
+    stm.Close
+End Sub
+
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: modNA_Convert  [Standard Module]
+================================================================================
+Option Explicit
+
+Public Sub ConvertXlsxFolderToCsv(ByVal sourceFolder As String, ByVal rootPath As String)
+
+    On Error GoTo EH
+
+    sourceFolder = Trim$(Replace(sourceFolder, "/", "\"))
+    If Right$(sourceFolder, 1) = "\" Then sourceFolder = Left$(sourceFolder, Len(sourceFolder) - 1)
+
+    If Len(sourceFolder) = 0 Then
+        MsgBox "Nie wskazano folderu.", vbExclamation
+        Exit Sub
+    End If
+
+    Dim fso As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+
+    If Not fso.FolderExists(sourceFolder) Then
+        MsgBox "Folder nie istnieje: " & sourceFolder, vbExclamation
+        Exit Sub
+    End If
+
+    Dim targetFolder As String
+    targetFolder = rootPath & "\_data\converted_csv"
+    EnsureFolder targetFolder
+
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+
+    ProcessFolderRecursive sourceFolder, targetFolder
+
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+
+    MsgBox "Konwersja zakończona.", vbInformation
+    Exit Sub
+
+EH:
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+    MsgBox "Błąd konwersji: " & Err.Description, vbCritical
+End Sub
+
+
+Private Sub ProcessFolderRecursive(ByVal folderPath As String, ByVal targetFolder As String)
+
+    Dim fso As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+
+    Dim f As Object
+    Dim subF As Object
+
+    For Each f In fso.GetFolder(folderPath).files
+        If LCase(fso.GetExtensionName(f.Name)) = "xlsx" Then
+            ConvertOneFile f.path, targetFolder
+        End If
+    Next f
+
+    For Each subF In fso.GetFolder(folderPath).SubFolders
+        ProcessFolderRecursive subF.path, targetFolder
+    Next subF
+
+End Sub
+
+
+Private Sub ConvertOneFile(ByVal fullPath As String, ByVal targetFolder As String)
+
+    Dim wb As Workbook
+    Dim csvPath As String
+
+    Set wb = Workbooks.Open(fullPath, ReadOnly:=True)
+
+    csvPath = targetFolder & "\" & _
+              Replace(wb.Name, ".xlsx", ".csv")
+
+    wb.SaveAs fileName:=csvPath, _
+              FileFormat:=xlCSVUTF8
+
+    wb.Close False
+
+End Sub
+
+
+Private Sub EnsureFolder(ByVal folderPath As String)
+    Dim fso As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If Not fso.FolderExists(folderPath) Then
+        fso.CreateFolder folderPath
+    End If
+End Sub
+
+--------------------------------------------------------------------------------
+
+================================================================================
+=== Component: modMergeCsvEmail  [Standard Module]
+================================================================================
+Option Explicit
+
+' ============================
+' CSV merge: id + dane osobowe
+' email = klucz łączenia
+' wynik: dane_do_raportu.csv w folderze pierwszego pliku
+' ============================
+
+Public Sub MergeCsv_ByEmail()
+    On Error GoTo EH
+
+    Dim csv1Path As String, csv2Path As String
+    csv1Path = PickCsvFile("Wybierz PIERWSZY plik CSV (Pełna nazwa, E-mail, ...)")
+    If Len(csv1Path) = 0 Then Exit Sub
+
+    csv2Path = PickCsvFile("Wybierz DRUGI plik CSV (id,email)")
+    If Len(csv2Path) = 0 Then Exit Sub
+
+    Dim outPath As String
+    outPath = ParentFolder(csv1Path) & "dane_do_raportu.csv"
+
+    ' 1) wczytaj mapę email -> id z csv2
+    Dim mapEmailToId As Object
+    Set mapEmailToId = CreateObject("Scripting.Dictionary")
+    mapEmailToId.CompareMode = 1 ' TextCompare
+
+    Dim csv2Text As String
+    csv2Text = ReadTextUtf8(csv2Path)
+
+    Dim lines2 As Variant
+    lines2 = SplitLines(csv2Text)
+    If UBound(lines2) < 0 Then Err.Raise vbObjectError + 1, , "Drugi plik CSV jest pusty."
+
+    Dim hdr2 As Variant
+    Dim delim2 As String
+    delim2 = DetectDelimiter(CStr(lines2(0)))
+    hdr2 = ParseCsvLineEx(CStr(lines2(0)), delim2)
+
+    Dim idx2_id As Long, idx2_email As Long
+    idx2_id = FindHeaderIndex(hdr2, "id")
+    idx2_email = FindHeaderIndex(hdr2, "email")
+
+    If idx2_id < 0 Or idx2_email < 0 Then
+        Err.Raise vbObjectError + 2, , "Drugi CSV musi mieć nagłówki: id,email"
+    End If
+
+    Dim i As Long
+    For i = 1 To UBound(lines2)
+        If Len(Trim$(CStr(lines2(i)))) = 0 Then GoTo Next2
+
+        Dim row2 As Variant
+        row2 = ParseCsvLineEx(CStr(lines2(i)), delim2)
+
+        Dim em2 As String, id2 As String
+        em2 = NormalizeEmail(GetFieldSafe(row2, idx2_email))
+        id2 = Trim$(GetFieldSafe(row2, idx2_id))
+
+        If Len(em2) > 0 Then
+            ' jeśli duplikaty emaili -> ostatni wygrywa (możesz zmienić na pierwszy)
+            mapEmailToId(em2) = id2
+        End If
+Next2:
+    Next i
+
+    ' 2) czytaj csv1 i zapisuj wynik z dodanym "id" na początku
+    Dim csv1Text As String
+    csv1Text = ReadTextUtf8(csv1Path)
+
+    Dim lines1 As Variant
+    lines1 = SplitLines(csv1Text)
+    If UBound(lines1) < 0 Then Err.Raise vbObjectError + 3, , "Pierwszy plik CSV jest pusty."
+
+    Dim hdr1 As Variant
+    Dim delim1 As String
+    delim1 = DetectDelimiter(CStr(lines1(0)))
+    hdr1 = ParseCsvLineEx(CStr(lines1(0)), delim1)
+
+    Dim idx1_email As Long
+    ' w Twoim nagłówku jest "E-mail" (z myślnikiem)
+    idx1_email = FindHeaderIndex(hdr1, "E-mail")
+    If idx1_email < 0 Then idx1_email = FindHeaderIndex(hdr1, "Email")
+    If idx1_email < 0 Then idx1_email = FindHeaderIndex(hdr1, "E-mail ") ' awaryjnie
+
+    If idx1_email < 0 Then
+        Err.Raise vbObjectError + 4, , "Pierwszy CSV musi mieć kolumnę nagłówka: E-mail"
+    End If
+
+    Dim sb As String
+    sb = ""
+
+    ' nagłówek wyjściowy: id + oryginalne nagłówki
+    sb = sb & CsvJoinWithLeadingId("id", hdr1) & vbCrLf
+
+    Dim notFound As Long, total As Long
+    For i = 1 To UBound(lines1)
+        Dim ln As String
+        ln = CStr(lines1(i))
+        If Len(Trim$(ln)) = 0 Then GoTo Next1
+
+        total = total + 1
+
+        Dim row1 As Variant
+        row1 = ParseCsvLineEx(ln, delim1)
+
+        Dim em1 As String
+        em1 = NormalizeEmail(GetFieldSafe(row1, idx1_email))
+
+        Dim idOut As String
+        If Len(em1) > 0 And mapEmailToId.Exists(em1) Then
+            idOut = CStr(mapEmailToId(em1))
+        Else
+            idOut = "" ' brak dopasowania -> puste id
+            notFound = notFound + 1
+        End If
+
+        sb = sb & CsvJoinWithLeadingId(idOut, row1) & vbCrLf
+Next1:
+    Next i
+
+    WriteTextUtf8 outPath, sb
+
+    MsgBox "Zapisano: " & outPath & vbCrLf & _
+           "Wiersze: " & total & vbCrLf & _
+           "Brak dopasowania id: " & notFound, vbInformation
+    Exit Sub
+
+EH:
+    MsgBox "Błąd: " & Err.Number & vbCrLf & Err.Description, vbCritical
+End Sub
+
+' ----------------------------
+' UI: wybór pliku
+' ----------------------------
+Private Function PickCsvFile(ByVal title As String) As String
+    On Error GoTo EH
+    Dim fd As Object
+    Set fd = Application.FileDialog(3) ' msoFileDialogFilePicker
+
+    With fd
+        .title = title
+        .AllowMultiSelect = False
+        .Filters.Clear
+        .Filters.Add "CSV", "*.csv"
+        .Filters.Add "Wszystkie pliki", "*.*"
+        If .Show <> -1 Then Exit Function
+        PickCsvFile = .SelectedItems(1)
+    End With
+    Exit Function
+EH:
+    PickCsvFile = ""
+End Function
+
+' ----------------------------
+' UTF-8 read/write (ADODB.Stream)
+' ----------------------------
+Private Function ReadTextUtf8(ByVal path As String) As String
+    Dim stm As Object
+    Set stm = CreateObject("ADODB.Stream")
+    With stm
+        .Type = 2 ' adTypeText
+        .Charset = "utf-8"
+        .Open
+        .LoadFromFile path
+        ReadTextUtf8 = .ReadText(-1)
+        .Close
+    End With
+End Function
+
+Private Sub WriteTextUtf8(ByVal path As String, ByVal textData As String)
+    Dim stm As Object
+    Set stm = CreateObject("ADODB.Stream")
+    With stm
+        .Type = 2 ' adTypeText
+        .Charset = "utf-8"
+        .Open
+        .WriteText textData
+        .SaveToFile path, 2 ' adSaveCreateOverWrite
+        .Close
+    End With
+End Sub
+
+' ----------------------------
+' CSV parsing (quotes-aware)
+' ----------------------------
+Private Function ParseCsvLineEx(ByVal line As String, ByVal delim As String) As Variant
+    Dim res() As String
+    Dim i As Long, ch As String
+    Dim cur As String
+    Dim inQ As Boolean
+
+    ReDim res(0 To 0)
+    cur = ""
+    inQ = False
+
+    i = 1
+    Do While i <= Len(line)
+        ch = Mid$(line, i, 1)
+
+        If inQ Then
+            If ch = """" Then
+                If i < Len(line) And Mid$(line, i + 1, 1) = """" Then
+                    cur = cur & """"
+                    i = i + 1
+                Else
+                    inQ = False
+                End If
+            Else
+                cur = cur & ch
+            End If
+        Else
+            If ch = delim Then
+                AppendField res, cur
+                cur = ""
+            ElseIf ch = """" Then
+                inQ = True
+            Else
+                cur = cur & ch
+            End If
+        End If
+
+        i = i + 1
+    Loop
+
+    AppendField res, cur
+    ParseCsvLineEx = res
+End Function
+
+Private Sub AppendField(ByRef arr() As String, ByVal v As String)
+    Dim n As Long
+    n = UBound(arr)
+    If n = 0 And Len(arr(0)) = 0 Then
+        arr(0) = v
+    Else
+        ReDim Preserve arr(0 To n + 1)
+        arr(n + 1) = v
+    End If
+End Sub
+
+Private Function CsvJoinWithLeadingId(ByVal idVal As String, ByVal row As Variant) As String
+    Dim i As Long
+    Dim s As String
+    s = CsvEscape(idVal)
+
+    For i = LBound(row) To UBound(row)
+        s = s & "," & CsvEscape(CStr(row(i)))
+    Next i
+    CsvJoinWithLeadingId = s
+End Function
+
+Private Function CsvEscape(ByVal v As String) As String
+    Dim mustQ As Boolean
+    mustQ = (InStr(1, v, ",", vbBinaryCompare) > 0) Or _
+            (InStr(1, v, """", vbBinaryCompare) > 0) Or _
+            (InStr(1, v, vbCr, vbBinaryCompare) > 0) Or _
+            (InStr(1, v, vbLf, vbBinaryCompare) > 0)
+
+    If InStr(1, v, """", vbBinaryCompare) > 0 Then
+        v = Replace$(v, """", """""")
+    End If
+
+    If mustQ Then
+        CsvEscape = """" & v & """"
+    Else
+        CsvEscape = v
+    End If
+End Function
+
+' ----------------------------
+' Helpers
+' ----------------------------
+Private Function FindHeaderIndex(ByVal headers As Variant, ByVal headerName As String) As Long
+    Dim i As Long
+    FindHeaderIndex = -1
+    For i = LBound(headers) To UBound(headers)
+        If NormalizeHeader(CStr(headers(i))) = NormalizeHeader(headerName) Then
+            FindHeaderIndex = i
+            Exit Function
+        End If
+    Next i
+End Function
+
+Private Function NormalizeHeader(ByVal s As String) As String
+    s = Trim$(s)
+    s = Replace$(s, Chr$(160), " ")
+    s = LCase$(s)
+    NormalizeHeader = s
+End Function
+
+Private Function NormalizeEmail(ByVal s As String) As String
+    s = Trim$(s)
+    s = Replace$(s, Chr$(160), " ")
+    s = LCase$(s)
+    NormalizeEmail = s
+End Function
+
+Private Function GetFieldSafe(ByVal row As Variant, ByVal idx As Long) As String
+    On Error GoTo EH
+    If idx < LBound(row) Or idx > UBound(row) Then Exit Function
+    GetFieldSafe = CStr(row(idx))
+    Exit Function
+EH:
+    GetFieldSafe = ""
+End Function
+
+Private Function ParentFolder(ByVal fullPath As String) As String
+    Dim p As Long
+    p = InStrRev(fullPath, "\")
+    If p > 0 Then
+        ParentFolder = Left$(fullPath, p)
+    Else
+        ParentFolder = ""
+    End If
+End Function
+
+Private Function SplitLines(ByVal s As String) As Variant
+    ' normalizacja zakończeń linii
+    s = Replace$(s, vbCrLf, vbLf)
+    s = Replace$(s, vbCr, vbLf)
+    If Len(s) = 0 Then
+        SplitLines = Array()
+    Else
+        SplitLines = Split(s, vbLf)
+    End If
+End Function
+Private Function DetectDelimiter(ByVal line As String) As String
+    ' prosto: który znak częściej występuje w nagłówku
+    Dim cComma As Long, cSemi As Long
+    cComma = Len(line) - Len(Replace$(line, ",", ""))
+    cSemi = Len(line) - Len(Replace$(line, ";", ""))
+    If cSemi > cComma Then DetectDelimiter = ";" Else DetectDelimiter = ","
+End Function
+--------------------------------------------------------------------------------
+
