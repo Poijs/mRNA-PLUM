@@ -687,3 +687,6 @@ def cmd_export_individual(
     _write_marker(paths, "export_individual")
     logger.info("[export_individual] done out_dir=%s", result_dir)
     raise typer.Exit(code=code)
+
+if __name__ == '__main__':
+    app()
