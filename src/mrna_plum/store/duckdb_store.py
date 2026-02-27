@@ -161,7 +161,7 @@ def merge_stage_into_events_raw(con: duckdb.DuckDBPyConnection) -> int:
     )
     # DuckDB python: rowcount by cursor.rowcount is not always reliable; use changes()
     try:
-        return con.execute("SELECT changes();").fetchone()[0]
+        return con.execute("SELECT COUNT(*) FROM _events_raw_stage").fetchone()[0]
     except Exception:
         return 0
 

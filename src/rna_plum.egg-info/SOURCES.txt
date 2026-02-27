@@ -1,3 +1,4 @@
+README.md
 pyproject.toml
 src/mrna_plum/__init__.py
 src/mrna_plum/__main__.py
