@@ -252,6 +252,7 @@ def _merge_logs_into_duckdb_impl(
     Rdzeń logiki scalania.
     """
     try:
+        ensure_schema(con)
         grouped = group_logs_by_course(root)
         if not grouped:
             raise RuntimeError(
