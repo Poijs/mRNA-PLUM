@@ -1,2 +1,2 @@
 [console_scripts]
-mrna_plum = mrna_plum.cli:app
+rna_plum = mrna_plum.cli:app

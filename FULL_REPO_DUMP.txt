@@ -1,5 +1,5 @@
 REPO DUMP
-Generated: 2026-02-27 12:26:29.691356
+Generated: 2026-02-27 15:08:06.886209
 Root: D:\Praca\mRNA-PLUM
 
 
@@ -232,7 +232,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
@@ -2549,6 +2549,7 @@ import pyarrow.parquet as pq
 
 from mrna_plum.io.csv_read import detect_csv_dialect, iter_csv_rows_streaming, pick_time_column_index
 from mrna_plum.store.duckdb_store import (
+    ensure_schema,
     EventRawRow,
     create_stage_table,
     insert_stage_rows,
@@ -2788,6 +2789,7 @@ def _merge_logs_into_duckdb_impl(
     Rdzeń logiki scalania.
     """
     try:
+        ensure_schema(con)
         grouped = group_logs_by_course(root)
         if not grouped:
             raise RuntimeError(
@@ -5946,7 +5948,7 @@ def merge_stage_into_events_raw(con: duckdb.DuckDBPyConnection) -> int:
     )
     # DuckDB python: rowcount by cursor.rowcount is not always reliable; use changes()
     try:
-        return con.execute("SELECT changes();").fetchone()[0]
+        return con.execute("SELECT COUNT(*) FROM _events_raw_stage").fetchone()[0]
     except Exception:
         return 0
 
@@ -6734,6 +6736,7 @@ openpyxl>=3.1.0
 src\rna_plum.egg-info\SOURCES.txt
 ================================================================================
 
+README.md
 pyproject.toml
 src/mrna_plum/__init__.py
 src/mrna_plum/__main__.py

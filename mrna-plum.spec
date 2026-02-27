@@ -6,7 +6,12 @@ a = Analysis(
     pathex=['src'],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=[
+        'tzdata',
+        'duckdb',
+        'mrna_plum.merge.merge_logs',
+        'mrna_plum.store.duckdb_store',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -29,7 +34,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=True,   # ← ZMIANA
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
