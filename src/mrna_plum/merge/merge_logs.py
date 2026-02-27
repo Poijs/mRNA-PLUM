@@ -13,6 +13,7 @@ import pyarrow.parquet as pq
 
 from mrna_plum.io.csv_read import detect_csv_dialect, iter_csv_rows_streaming, pick_time_column_index
 from mrna_plum.store.duckdb_store import (
+    ensure_schema,
     EventRawRow,
     create_stage_table,
     insert_stage_rows,
