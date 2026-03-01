@@ -1,4 +1,5 @@
 from __future__ import annotations
+import functools
 
 from pathlib import Path
 from typing import Optional, Callable, Any
@@ -57,6 +58,7 @@ def _collect_input_files(root: Path, input_glob: str) -> list[Path]:
 
 
 def _main_guard(fn: Callable[..., Any]) -> Callable[..., Any]:
+    @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         try:
             return fn(*args, **kwargs)

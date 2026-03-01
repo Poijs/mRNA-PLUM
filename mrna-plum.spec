@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['src\\mrna_plum\\cli.py'],
+    ['src\\mrna_plum\\__main__.py'],
     pathex=['src'],
     binaries=[],
     datas=[],
