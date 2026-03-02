@@ -568,6 +568,14 @@ def cmd_export_excel(
     cfg = load_config(cfg_p)
 
     # NEW: autodetekcja HR/roster (opcjonalne)
+     # Ujednolicenie roota dla raportów: zawsze opieraj na --root,
+    # a nie np. paths.output_root z configa.
+    if isinstance(cfg, dict):
+        cfg["root"] = str(root_p)
+    else:
+        cfg._data["root"] = str(root_p)  # type: ignore[attr-defined]
+
+
     in_dir = _resolve_inputs_dir(root_p, cfg, inputs_dir)
     if in_dir:
         try:
@@ -640,6 +648,13 @@ def cmd_export_individual(
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
+    
+    # Ujednolicenie roota dla raportów: zawsze opieraj na --root,
+    # a nie np. paths.output_root z configa.
+    if isinstance(cfg, dict):
+        cfg["root"] = str(root_p)
+    else:
+        cfg._data["root"] = str(root_p)  # type: ignore[attr-defined]
 
     # NEW: autodetekcja HR/roster (opcjonalne)
     in_dir = _resolve_inputs_dir(root_p, cfg, inputs_dir)

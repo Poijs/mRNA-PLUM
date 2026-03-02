@@ -18,16 +18,18 @@ class MatchResult:
 
 def compile_rules(keys_df: pd.DataFrame) -> list[Rule]:
     rules: list[Rule] = []
+
     for _, r in keys_df.iterrows():
         def _p(s: object) -> str:
             return "" if s is None else str(s)
 
         match_rx = re.compile(_p(r["REGEX_DOPASOWANIA_(Opis)"]))
-        user_rx_s = _p(r["REGEX_USER_ID_(Opis)"]).strip()
-        obj_rx_s  = _p(r["REGEX_OBIEKT_ID_(z dopasowania)"]).strip()
 
+        user_rx_s = _p(r["REGEX_USER_ID_(Opis)"]).strip()
         user_rx = re.compile(user_rx_s) if user_rx_s else None
-        obj_rx  = re.compile(obj_rx_s) if obj_rx_s else None
+
+        # zamiast kompilować regex, traktujemy to jako nazwę grupy
+        obj_group = _p(r["REGEX_OBIEKT_ID_(z dopasowania)"]).strip() or None
 
         count_flag = _p(r["LICZYC_DO_RAPORTU"]).upper() in ("TAK", "1", "TRUE", "YES")
 
@@ -39,11 +41,11 @@ def compile_rules(keys_df: pd.DataFrame) -> list[Rule]:
                 count_to_report=count_flag,
                 regex_match_desc=match_rx,
                 regex_user_id=user_rx,
-                regex_object_id=obj_rx,
+                regex_object_id=obj_group,  # ← teraz to string z nazwą grupy
                 priority=int(r["PRIORYTET"]),
             )
         )
-    # wyższy priorytet pierwszy
+
     rules.sort(key=lambda x: x.priority, reverse=True)
     return rules
 
@@ -63,13 +65,19 @@ def match_best_rule(description: str, rules: list[Rule]) -> Optional[MatchResult
             elif um:
                 teacher_id = um.group(0)
 
+        # object_id z nazwanej grupy regexu dopasowania
         if rule.regex_object_id:
-            # object_id może być z dopasowania głównego (m) albo z opisu
-            om = rule.regex_object_id.search(m.group(0)) or rule.regex_object_id.search(description or "")
-            if om and om.groups():
-                object_id = om.group(1)
-            elif om:
-                object_id = om.group(0)
+            gd = m.groupdict()
+            val = gd.get(rule.regex_object_id)
+            if val:
+                object_id = val
+        else:
+            # fallback: pierwsza grupa regexu dopasowania
+            try:
+                if m.groups():
+                    object_id = m.group(1)
+            except Exception:
+                object_id = None
 
         return MatchResult(
             tech_key=rule.tech_key,

@@ -2,3 +2,16 @@
 {"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T09:38:09.443303+00:00"}
 {"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T09:59:39.130298+00:00"}
 {"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-02T09:59:39.185476+00:00"}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T10:25:53.582894+00:00"}
+{"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-02T10:25:53.632937+00:00"}
+{"step": "export-excel", "status": "writing_qa", "ts": "2026-03-02T10:25:53.639236+00:00"}
+{"step": "export-excel", "status": "writing_info", "ts": "2026-03-02T10:25:53.673222+00:00"}
+{"step": "export-excel", "status": "done", "output": "_out\\_out\\Raport_Zbiorczy_NA__.xlsx", "main_rows": 0, "qa_rows": 289, "main_sheets": 1, "ts": "2026-03-02T10:25:53.727246+00:00"}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T10:44:43.686573+00:00"}
+{"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-02T10:44:43.732984+00:00"}
+{"step": "export-excel", "status": "writing_qa", "ts": "2026-03-02T10:44:43.737236+00:00"}
+{"step": "export-excel", "status": "writing_info", "ts": "2026-03-02T10:44:43.760272+00:00"}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T10:57:19.649519+00:00"}
+{"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-02T10:57:19.703532+00:00"}
+{"step": "export-excel", "status": "writing_qa", "ts": "2026-03-02T10:57:19.708729+00:00"}
+{"step": "export-excel", "status": "writing_info", "ts": "2026-03-02T10:57:19.732236+00:00"}

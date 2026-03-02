@@ -1,6 +1,6 @@
 REPO DUMP
-Generated: 2026-02-27 15:08:06.886209
-Root: D:\Praca\mRNA-PLUM
+Generated: 2026-03-02 13:03:27.595999
+Root: E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
 
 
 
@@ -34,6 +34,110 @@ build/
     "python-envs.defaultEnvManager": "ms-python.python:system",
     "python-envs.pythonProjects": []
 }
+
+================================================================================
+_data\parquet\events_canonical.parquet
+================================================================================
+
+[BINARY OR UNREADABLE FILE]
+
+
+================================================================================
+_out\_out\Raport_Zbiorczy_NA__.xlsx
+================================================================================
+
+[BINARY OR UNREADABLE FILE]
+
+
+================================================================================
+_out\_run\export-excel.ok
+================================================================================
+
+OK
+
+
+================================================================================
+_out\_run\progress.jsonl
+================================================================================
+
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T09:24:56.659818+00:00"}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T09:38:09.443303+00:00"}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T09:59:39.130298+00:00"}
+{"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-02T09:59:39.185476+00:00"}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T10:25:53.582894+00:00"}
+{"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-02T10:25:53.632937+00:00"}
+{"step": "export-excel", "status": "writing_qa", "ts": "2026-03-02T10:25:53.639236+00:00"}
+{"step": "export-excel", "status": "writing_info", "ts": "2026-03-02T10:25:53.673222+00:00"}
+{"step": "export-excel", "status": "done", "output": "_out\\_out\\Raport_Zbiorczy_NA__.xlsx", "main_rows": 0, "qa_rows": 289, "main_sheets": 1, "ts": "2026-03-02T10:25:53.727246+00:00"}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T10:44:43.686573+00:00"}
+{"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-02T10:44:43.732984+00:00"}
+{"step": "export-excel", "status": "writing_qa", "ts": "2026-03-02T10:44:43.737236+00:00"}
+{"step": "export-excel", "status": "writing_info", "ts": "2026-03-02T10:44:43.760272+00:00"}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T10:57:19.649519+00:00"}
+{"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-02T10:57:19.703532+00:00"}
+{"step": "export-excel", "status": "writing_qa", "ts": "2026-03-02T10:57:19.708729+00:00"}
+{"step": "export-excel", "status": "writing_info", "ts": "2026-03-02T10:57:19.732236+00:00"}
+
+
+================================================================================
+_out\_run\run.log
+================================================================================
+
+2026-03-02 10:24:56,660 INFO Exporting XLSX to: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 10:24:56,660 INFO Export config: ExportExcelConfig(max_rows_excel=1000000, overflow_strategy='error', activity_column='activity_label', course_column='course_name', include_hr_cols=True, exclude_zero_counts=True, percent_excel_format=True)
+2026-03-02 10:38:09,443 INFO Exporting XLSX to: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 10:38:09,443 INFO Export config: ExportExcelConfig(max_rows_excel=1000000, overflow_strategy='error', activity_column='activity_label', course_column='course_name', include_hr_cols=True, exclude_zero_counts=True, percent_excel_format=True)
+2026-03-02 10:59:39,130 INFO Exporting XLSX to: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 10:59:39,131 INFO Export config: ExportExcelConfig(max_rows_excel=1000000, overflow_strategy='error', activity_column='activity_label', course_column='course_name', include_hr_cols=True, exclude_zero_counts=True, percent_excel_format=True)
+2026-03-02 10:59:39,185 INFO metrics_long rows to export: 0
+2026-03-02 11:25:53,583 INFO Exporting XLSX to: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 11:25:53,591 INFO Export config: ExportExcelConfig(max_rows_excel=1000000, overflow_strategy='error', activity_column='activity_label', course_column='course_name', include_hr_cols=True, exclude_zero_counts=True, percent_excel_format=True)
+2026-03-02 11:25:53,632 INFO metrics_long rows to export: 0
+2026-03-02 11:25:53,639 INFO Wrote 0 rows into 1 sheet(s).
+2026-03-02 11:25:53,672 INFO QA rows: 289
+2026-03-02 11:25:53,680 INFO INFO: teachers=0 courses=0 records=0
+2026-03-02 11:25:53,727 INFO DONE: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 11:44:43,686 INFO Exporting XLSX to: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 11:44:43,687 INFO Export config: ExportExcelConfig(max_rows_excel=1000000, overflow_strategy='error', activity_column='activity_label', course_column='course_name', include_hr_cols=True, exclude_zero_counts=True, percent_excel_format=True)
+2026-03-02 11:44:43,732 INFO metrics_long rows to export: 0
+2026-03-02 11:44:43,737 INFO Wrote 0 rows into 1 sheet(s).
+2026-03-02 11:44:43,760 INFO QA rows: 289
+2026-03-02 11:44:43,765 INFO INFO: teachers=0 courses=0 records=0
+2026-03-02 11:57:19,650 INFO Exporting XLSX to: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 11:57:19,650 INFO Export config: ExportExcelConfig(max_rows_excel=1000000, overflow_strategy='error', activity_column='activity_label', course_column='course_name', include_hr_cols=True, exclude_zero_counts=True, percent_excel_format=True)
+2026-03-02 11:57:19,703 INFO metrics_long rows to export: 0
+2026-03-02 11:57:19,708 INFO Wrote 0 rows into 1 sheet(s).
+2026-03-02 11:57:19,732 INFO QA rows: 289
+2026-03-02 11:57:19,738 INFO INFO: teachers=0 courses=0 records=0
+
+
+================================================================================
+_run\run.log
+================================================================================
+
+2026-03-02 10:25:00 [export-individual] root=E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
+2026-03-02 10:25:00 [export-individual] out_dir=E:\Skrypty\GRN_v2\mRNA-PLUM\_out\indywidualne
+2026-03-02 10:25:00 [export-individual] max_workers=4 batch_teachers=50
+2026-03-02 10:38:13 [export-individual] root=E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
+2026-03-02 10:38:13 [export-individual] out_dir=E:\Skrypty\GRN_v2\mRNA-PLUM\_out\indywidualne
+2026-03-02 10:38:13 [export-individual] max_workers=4 batch_teachers=50
+2026-03-02 10:59:43 [export-individual] root=E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
+2026-03-02 10:59:43 [export-individual] out_dir=E:\Skrypty\GRN_v2\mRNA-PLUM\_out\indywidualne
+2026-03-02 10:59:43 [export-individual] max_workers=4 batch_teachers=50
+2026-03-02 10:59:43 [export-individual] Detected HR columns in mart.metrics_long: []
+2026-03-02 11:25:58 [export-individual] root=E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
+2026-03-02 11:25:58 [export-individual] out_dir=E:\Skrypty\GRN_v2\mRNA-PLUM\_out\indywidualne
+2026-03-02 11:25:58 [export-individual] max_workers=4 batch_teachers=50
+2026-03-02 11:25:58 [export-individual] Detected HR columns in mart.metrics_long: []
+2026-03-02 11:44:47 [export-individual] root=E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
+2026-03-02 11:44:47 [export-individual] out_dir=E:\Skrypty\GRN_v2\mRNA-PLUM\_out\indywidualne
+2026-03-02 11:44:47 [export-individual] max_workers=4 batch_teachers=50
+2026-03-02 11:44:47 [export-individual] Detected HR columns in mart.metrics_long: []
+2026-03-02 11:57:23 [export-individual] root=E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
+2026-03-02 11:57:23 [export-individual] out_dir=E:\Skrypty\GRN_v2\mRNA-PLUM\_out\indywidualne
+2026-03-02 11:57:23 [export-individual] max_workers=4 batch_teachers=50
+2026-03-02 11:57:23 [export-individual] Detected HR columns in mart.metrics_long: []
+
 
 ================================================================================
 config.example.yaml
@@ -188,6 +292,145 @@ print("FULL_REPO_DUMP.txt został wygenerowany.")
 FULL_REPO_DUMP.txt
 ================================================================================
 
+REPO DUMP
+Generated: 2026-03-02 13:03:27.595999
+Root: E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
+
+
+
+================================================================================
+.gitignore
+================================================================================
+
+__pycache__/
+*.pyc
+.venv/
+OUT/
+IN/
+*.duckdb
+*.log
+dist/
+build/
+
+
+================================================================================
+.vscode\python
+================================================================================
+
+
+
+
+================================================================================
+.vscode\settings.json
+================================================================================
+
+{
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python-envs.pythonProjects": []
+}
+
+================================================================================
+_data\parquet\events_canonical.parquet
+================================================================================
+
+[BINARY OR UNREADABLE FILE]
+
+
+================================================================================
+_out\_out\Raport_Zbiorczy_NA__.xlsx
+================================================================================
+
+[BINARY OR UNREADABLE FILE]
+
+
+================================================================================
+_out\_run\export-excel.ok
+================================================================================
+
+OK
+
+
+================================================================================
+_out\_run\progress.jsonl
+================================================================================
+
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T09:24:56.659818+00:00"}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T09:38:09.443303+00:00"}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T09:59:39.130298+00:00"}
+{"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-02T09:59:39.185476+00:00"}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T10:25:53.582894+00:00"}
+{"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-02T10:25:53.632937+00:00"}
+{"step": "export-excel", "status": "writing_qa", "ts": "2026-03-02T10:25:53.639236+00:00"}
+{"step": "export-excel", "status": "writing_info", "ts": "2026-03-02T10:25:53.673222+00:00"}
+{"step": "export-excel", "status": "done", "output": "_out\\_out\\Raport_Zbiorczy_NA__.xlsx", "main_rows": 0, "qa_rows": 289, "main_sheets": 1, "ts": "2026-03-02T10:25:53.727246+00:00"}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T10:44:43.686573+00:00"}
+{"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-02T10:44:43.732984+00:00"}
+{"step": "export-excel", "status": "writing_qa", "ts": "2026-03-02T10:44:43.737236+00:00"}
+{"step": "export-excel", "status": "writing_info", "ts": "2026-03-02T10:44:43.760272+00:00"}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T10:57:19.649519+00:00"}
+{"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-02T10:57:19.703532+00:00"}
+{"step": "export-excel", "status": "writing_qa", "ts": "2026-03-02T10:57:19.708729+00:00"}
+{"step": "export-excel", "status": "writing_info", "ts": "2026-03-02T10:57:19.732236+00:00"}
+
+
+================================================================================
+_out\_run\run.log
+================================================================================
+
+2026-03-02 10:24:56,660 INFO Exporting XLSX to: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 10:24:56,660 INFO Export config: ExportExcelConfig(max_rows_excel=1000000, overflow_strategy='error', activity_column='activity_label', course_column='course_name', include_hr_cols=True, exclude_zero_counts=True, percent_excel_format=True)
+2026-03-02 10:38:09,443 INFO Exporting XLSX to: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 10:38:09,443 INFO Export config: ExportExcelConfig(max_rows_excel=1000000, overflow_strategy='error', activity_column='activity_label', course_column='course_name', include_hr_cols=True, exclude_zero_counts=True, percent_excel_format=True)
+2026-03-02 10:59:39,130 INFO Exporting XLSX to: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 10:59:39,131 INFO Export config: ExportExcelConfig(max_rows_excel=1000000, overflow_strategy='error', activity_column='activity_label', course_column='course_name', include_hr_cols=True, exclude_zero_counts=True, percent_excel_format=True)
+2026-03-02 10:59:39,185 INFO metrics_long rows to export: 0
+2026-03-02 11:25:53,583 INFO Exporting XLSX to: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 11:25:53,591 INFO Export config: ExportExcelConfig(max_rows_excel=1000000, overflow_strategy='error', activity_column='activity_label', course_column='course_name', include_hr_cols=True, exclude_zero_counts=True, percent_excel_format=True)
+2026-03-02 11:25:53,632 INFO metrics_long rows to export: 0
+2026-03-02 11:25:53,639 INFO Wrote 0 rows into 1 sheet(s).
+2026-03-02 11:25:53,672 INFO QA rows: 289
+2026-03-02 11:25:53,680 INFO INFO: teachers=0 courses=0 records=0
+2026-03-02 11:25:53,727 INFO DONE: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 11:44:43,686 INFO Exporting XLSX to: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 11:44:43,687 INFO Export config: ExportExcelConfig(max_rows_excel=1000000, overflow_strategy='error', activity_column='activity_label', course_column='course_name', include_hr_cols=True, exclude_zero_counts=True, percent_excel_format=True)
+2026-03-02 11:44:43,732 INFO metrics_long rows to export: 0
+2026-03-02 11:44:43,737 INFO Wrote 0 rows into 1 sheet(s).
+2026-03-02 11:44:43,760 INFO QA rows: 289
+2026-03-02 11:44:43,765 INFO INFO: teachers=0 courses=0 records=0
+2026-03-02 11:57:19,650 INFO Exporting XLSX to: _out\_out\Raport_Zbiorczy_NA__.xlsx
+2026-03-02 11:57:19,650 INFO Export config: ExportExcelConfig(max_rows_excel=1000000, overflow_strategy='error', activity_column='activity_label', course_column='course_name', include_hr_cols=True, exclude_zero_counts=True, percent_excel_format=True)
+2026-03-02 11:57:19,703 INFO metrics_long rows to export: 0
+2026-03-02 11:57:19,708 INFO Wrote 0 rows into 1 sheet(s).
+2026-03-02 11:57:19,732 INFO QA rows: 289
+2026-03-02 11:57:19,738 INFO INFO: teachers=0 courses=0 records=0
+
+
+================================================================================
+_run\run.log
+================================================================================
+
+2026-03-02 10:25:00 [export-individual] root=E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
+2026-03-02 10:25:00 [export-individual] out_dir=E:\Skrypty\GRN_v2\mRNA-PLUM\_out\indywidualne
+2026-03-02 10:25:00 [export-individual] max_workers=4 batch_teachers=50
+2026-03-02 10:38:13 [export-individual] root=E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
+2026-03-02 10:38:13 [export-individual] out_dir=E:\Skrypty\GRN_v2\mRNA-PLUM\_out\indywidualne
+2026-03-02 10:38:13 [export-individual] max_workers=4 batch_teachers=50
+2026-03-02 10:59:43 [export-individual] root=E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
+2026-03-02 10:59:43 [export-individual] out_dir=E:\Skrypty\GRN_v2\mRNA-PLUM\_out\indywidualne
+2026-03-02 10:59:43 [export-individual] max_workers=4 batch_teachers=50
+2026-03-02 10:59:43 [export-individual] Detected HR columns in mart.metrics_long: []
+2026-03-02 11:25:58 [export-individual] root=E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
+2026-03-02 11:25:58 [export-individual] out_dir=E:\Skrypty\GRN_v2\mRNA-PLUM\_out\indywidualne
+2026-03-02 11:25:58 [export-individual] max_workers=4 batch_teachers=50
+2026-03-02 11:25:58 [export-individual] Detected HR columns in mart.metrics_long: []
+2026-03-02 11:44:47 [export-individual] root=E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
+2026-03-02 11:44:47 [export-individual] out_dir=E:\Skrypty\GRN_v2\mRNA-PLUM\_out\indywidualne
+2026-03-02 11:44:47 [export-individual] max_workers=4 batch_teachers=50
+2026-03-02 11:44:47 [export-individual] Detected HR columns in mart.metrics_long: []
+2026-03-02 11:57:23 [export-individual] root=E:\Skrypty\GRN_v2\GRN_v2\mRNA-PLUM
+2026-03-02 11:57:23 [export-individual] out_dir=E:\Skrypty\GRN_v2\mRNA-PLUM\_out\indywidualne
+2026-03-02 11:57:23 [export-individual] max_workers=4 batch_teachers=50
+2026-03-02 11:57:23 [export-individual] Detected HR columns in mart.metrics_long: []
 
 
 ================================================================================
@@ -205,11 +448,19 @@ mrna-plum.spec
 
 
 a = Analysis(
-    ['src\\mrna_plum\\cli.py'],
+    ['src\\mrna_plum\\__main__.py'],
     pathex=['src'],
     binaries=[],
-    datas=[],
-    hiddenimports=[],
+    datas=[
+        ('.venv\\Lib\\site-packages\\rich', 'rich'),
+    ],
+    hiddenimports=[
+        'tzdata',
+        'duckdb',
+        'mrna_plum.merge.merge_logs',
+        'mrna_plum.store.duckdb_store',
+        'rich._unicode_data',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -232,7 +483,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
@@ -246,9 +497,9 @@ pyproject.toml
 ================================================================================
 
 [project]
-name = "rna-plum"
+name = "mrna-plum"
 version = "0.1.0"
-description = "RNA-PLUM CLI (merge/parse/stats/export) for Moodle/PLUM logs"
+description = "mRNA-PLUM CLI (merge/parse/stats/export) for Moodle/PLUM logs"
 requires-python = ">=3.10"
 dependencies = [
   "typer>=0.12.0",
@@ -260,7 +511,7 @@ dependencies = [
 ]
 
 [project.scripts]
-rna_plum = "rna_plum.cli:app"
+rna_plum = "mrna_plum.cli:app"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -313,9 +564,9 @@ __version__ = "0.1.0"
 src\mrna_plum\__main__.py
 ================================================================================
 
-from .cli import app
+﻿from mrna_plum.cli import app
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app()
 
 
@@ -823,7 +1074,7 @@ def load_plum_snapshot_file_into_duckdb(
                 row.row_key,
             ],
         )
-        inserted += int(con.execute("select changes()").fetchone()[0])
+        inserted += 1
 
         if max_captured_at is None or row.captured_at > max_captured_at:
             max_captured_at = row.captured_at
@@ -874,7 +1125,8 @@ def cfg_path(root: Path, cfg: dict, key: str, default_rel: str | None = None) ->
 src\mrna_plum\cli.py
 ================================================================================
 
-from __future__ import annotations
+﻿from __future__ import annotations
+import functools
 
 from pathlib import Path
 from typing import Optional, Callable, Any
@@ -892,7 +1144,7 @@ from mrna_plum.inputs.autodetect import find_inputs, InputValidationError
 
 app = typer.Typer(add_completion=False)
 
-# Exit codes (wg ustaleń)
+# Exit codes (wg ustaleĹ„)
 EC_OK = 0
 EC_CONFIG = 2
 EC_INPUT = 10
@@ -916,7 +1168,7 @@ def _ensure_dirs(paths: ProjectPaths) -> None:
     paths.run_dir.mkdir(parents=True, exist_ok=True)
     paths.data_dir.mkdir(parents=True, exist_ok=True)
     paths.parquet_dir.mkdir(parents=True, exist_ok=True)
-    # opcjonalnie: out dir jeśli masz w ProjectPaths
+    # opcjonalnie: out dir jeĹ›li masz w ProjectPaths
     try:
         paths.out_dir.mkdir(parents=True, exist_ok=True)  # type: ignore[attr-defined]
     except Exception:
@@ -933,6 +1185,7 @@ def _collect_input_files(root: Path, input_glob: str) -> list[Path]:
 
 
 def _main_guard(fn: Callable[..., Any]) -> Callable[..., Any]:
+    @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         try:
             return fn(*args, **kwargs)
@@ -962,7 +1215,7 @@ def _resolve_inputs_dir(root: Path, cfg: Any, inputs_dir_opt: str | None) -> Pat
     """
     Priorytet:
     1) CLI --inputs-dir
-    2) config.yaml: inputs.inputs_dir (jeśli istnieje)
+    2) config.yaml: inputs.inputs_dir (jeĹ›li istnieje)
     """
     if inputs_dir_opt:
         return Path(inputs_dir_opt).expanduser().resolve()
@@ -972,9 +1225,9 @@ def _resolve_inputs_dir(root: Path, cfg: Any, inputs_dir_opt: str | None) -> Pat
         if isinstance(cfg, dict):
             v = (cfg.get("inputs") or {}).get("inputs_dir")
         else:
-            # jeśli kiedyś inputs będzie atrybutem
+            # jeĹ›li kiedyĹ› inputs bÄ™dzie atrybutem
             v = getattr(getattr(cfg, "inputs", None), "inputs_dir", None)
-            # Twoja konfiguracja używa często cfg._data jako słownik
+            # Twoja konfiguracja uĹĽywa czÄ™sto cfg._data jako sĹ‚ownik
             if v is None and hasattr(cfg, "_data"):
                 inputs_sec = cfg._data.get("inputs") or {}  # type: ignore[attr-defined]
                 if isinstance(inputs_sec, dict):
@@ -999,11 +1252,11 @@ def _emit_inputs_detected(progress: ProgressWriter, inputs: Any) -> None:
         "detected",
         "Inputs autodetected",
         extra={
-            "inputs_dir": str(inputs.inputs_dir),
+            "inputs_dir": str(getattr(inputs, "inputs_dir", None)),
             "teachers_csv": str(inputs.teachers_csv) if getattr(inputs, "teachers_csv", None) else None,
             "roster_csv": str(inputs.roster_csv) if getattr(inputs, "roster_csv", None) else None,
             "snapshot_csv": str(inputs.snapshot_csv) if getattr(inputs, "snapshot_csv", None) else None,
-            # opcjonalne mapowania (jeśli find_inputs je zwraca)
+            # opcjonalne mapowania (jeĹ›li find_inputs je zwraca)
             "teachers_map": getattr(inputs, "teachers_map", None),
             "roster_map": getattr(inputs, "roster_map", None),
             "snapshot_map": getattr(inputs, "snapshot_map", None),
@@ -1015,7 +1268,7 @@ def _inject_inputs_into_cfg(cfg: Any, teachers_csv: str | None, roster_csv: str 
     """
     Wstrzykuje wykryte pliki do cfg:
       cfg.inputs.teachers_csv / cfg.inputs.roster_csv / cfg.inputs.snapshot_csv
-    Obsługuje cfg jako dict lub obiekt z _data.
+    ObsĹ‚uguje cfg jako dict lub obiekt z _data.
     """
     if isinstance(cfg, dict):
         cfg.setdefault("inputs", {})
@@ -1051,7 +1304,7 @@ def cmd_init(
     root: str = typer.Option(..., "--root", help="Root folder projektu (np. ThisWorkbook.Path)"),
 ):
     """
-    Tworzy podstawową strukturę folderów projektu.
+    Tworzy podstawowÄ… strukturÄ™ folderĂłw projektu.
     """
     root_p = _resolve_root(root)
 
@@ -1068,28 +1321,29 @@ def cmd_init(
 def cmd_merge_logs(
     root: str = typer.Option(..., "--root", help="Root folder passed from VBA (ThisWorkbook.Path)"),
     config: str | None = typer.Option(None, "--config", help="Config path; default {root}/config.yaml"),
+    inputs_dir: str | None = typer.Option(None, "--inputs-dir", help="Ignorowane przez merge-logs"),
     mode: str = typer.Option(
         "duckdb",
         "--mode",
-        help="duckdb (pipeline B) | parquet (pipeline A → merged_raw.parquet)",
+        help="duckdb (pipeline B) | parquet (pipeline A â†’ merged_raw.parquet)",
         case_sensitive=False,
     ),
 ):
     """
-    Merge logów CSV z Moodle/PLUM.
+    Merge logĂłw CSV z Moodle/PLUM.
 
     mode=parquet:
-        CSV → merged_raw.parquet (pipeline A)
+        CSV â†’ merged_raw.parquet (pipeline A)
 
     mode=duckdb:
-        CSV → DuckDB raw (pipeline B / staging)
+        CSV â†’ DuckDB raw (pipeline B / staging)
     """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
@@ -1131,7 +1385,7 @@ def cmd_merge_logs(
         logger.info("[merge] done rows=%s parquet=%s", total_rows, merged_parquet)
         raise typer.Exit(code=EC_OK)
 
-    # mode == duckdb → pipeline B
+    # mode == duckdb â†’ pipeline B
     from .store.duckdb_store import open_store
     from .merge.merge_logs import merge_logs_into_duckdb
 
@@ -1172,19 +1426,19 @@ def cmd_build_db(
     config: str | None = typer.Option(None, "--config"),
 ):
     """
-    Pipeline A: merged_raw.parquet → parsed.parquet → DuckDB(raw_logs)
+    Pipeline A: merged_raw.parquet â†’ parsed.parquet â†’ DuckDB(raw_logs)
     """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
 
-    # KEYS → rules
+    # KEYS â†’ rules
     from .io.excel_keys import load_keys_sheet
     from .rules.engine import compile_rules
 
@@ -1226,17 +1480,17 @@ def cmd_build_db(
 def cmd_parse_events(
     root: str = typer.Option(..., "--root", help="Root projektu"),
     config: str | None = typer.Option(None, "--config", help="config.yaml; default {root}/config.yaml"),
-    keys_xlsx: str | None = typer.Option(None, "--keys-xlsx", help="Override ścieżki KEYS.xlsx/KEYS workbook"),
+    keys_xlsx: str | None = typer.Option(None, "--keys-xlsx", help="Override Ĺ›cieĹĽki KEYS.xlsx/KEYS workbook"),
 ):
     """
-    Pipeline B: raw (DuckDB) → events_canonical (DuckDB)
+    Pipeline B: raw (DuckDB) â†’ events_canonical (DuckDB)
     """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
@@ -1270,24 +1524,24 @@ def cmd_build_activities_state(
     inputs_dir: str | None = typer.Option(
         None,
         "--inputs-dir",
-        help="Folder INPUTS_DIR (autodetekcja plików HR/roster/snapshot)",
+        help="Folder INPUTS_DIR (autodetekcja plikĂłw HR/roster/snapshot)",
     ),
     # CHANGED: snapshot-file optional (override)
     snapshot_file: str | None = typer.Option(
         None,
         "--snapshot-file",
-        help="Override: CSV '*_zawartosc_kursow.csv' (jeśli nie używasz inputs-dir)",
+        help="Override: CSV '*_zawartosc_kursow.csv' (jeĹ›li nie uĹĽywasz inputs-dir)",
     ),
 ):
     """
-    Pipeline B: snapshot CSV → raw.activities_snapshot → mart.activities_state
+    Pipeline B: snapshot CSV â†’ raw.activities_snapshot â†’ mart.activities_state
     """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
@@ -1317,7 +1571,7 @@ def cmd_build_activities_state(
             if not inputs.roster_csv:
                 progress.emit("inputs", "warning", "Roster missing (*_raport_uczestnikow.csv) - students_enrolled will be '-'")
 
-            # wstrzyknij do cfg (żeby dalsze kroki mogły korzystać)
+            # wstrzyknij do cfg (ĹĽeby dalsze kroki mogĹ‚y korzystaÄ‡)
             _inject_inputs_into_cfg(
                 cfg,
                 teachers_csv=str(inputs.teachers_csv) if inputs.teachers_csv else None,
@@ -1395,14 +1649,14 @@ def cmd_compute_stats(
     config: str | None = typer.Option(None, "--config"),
 ):
     """
-    Ujednolicone compute-stats: wywołuje stats.compute_stats(root, ay, term).
+    Ujednolicone compute-stats: wywoĹ‚uje stats.compute_stats(root, ay, term).
     """
     root_p = _resolve_root(root)
-    _ = _resolve_config(root_p, config)  # na przyszłość
+    _ = _resolve_config(root_p, config)  # na przyszĹ‚oĹ›Ä‡
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     progress.emit("stats", "start", "Computing stats", extra={"ay": ay, "term": term})
@@ -1422,25 +1676,33 @@ def cmd_compute_stats(
 @_main_guard
 def cmd_export_excel(
     root: str = typer.Option(..., "--root"),
-    db_path: str | None = typer.Option(None, "--db-path", help="Override ścieżki do DuckDB; default z ProjectPaths"),
+    db_path: str | None = typer.Option(None, "--db-path", help="Override Ĺ›cieĹĽki do DuckDB; default z ProjectPaths"),
     config: str | None = typer.Option(None, "--config"),
     # NEW: INPUTS_DIR (opcjonalne, ale przydatne do metryczki/roster w raportach)
     inputs_dir: str | None = typer.Option(None, "--inputs-dir", help="Folder INPUTS_DIR (autodetekcja HR/roster)"),
 ):
     """
-    Eksport agregatów do Excela (docelowo: export_summary_excel).
+    Eksport agregatĂłw do Excela (docelowo: export_summary_excel).
     """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
 
     # NEW: autodetekcja HR/roster (opcjonalne)
+     # Ujednolicenie roota dla raportów: zawsze opieraj na --root,
+    # a nie np. paths.output_root z configa.
+    if isinstance(cfg, dict):
+        cfg["root"] = str(root_p)
+    else:
+        cfg._data["root"] = str(root_p)  # type: ignore[attr-defined]
+
+
     in_dir = _resolve_inputs_dir(root_p, cfg, inputs_dir)
     if in_dir:
         try:
@@ -1490,7 +1752,7 @@ def cmd_export_excel(
 def cmd_export_individual(
     root: str = typer.Option(..., "--root"),
     config: str | None = typer.Option(None, "--config"),
-    out_dir: str | None = typer.Option(None, "--out-dir", help="Override folderu wyjściowego na XLSX"),
+    out_dir: str | None = typer.Option(None, "--out-dir", help="Override folderu wyjĹ›ciowego na XLSX"),
     # NEW: INPUTS_DIR
     inputs_dir: str | None = typer.Option(None, "--inputs-dir", help="Folder INPUTS_DIR (autodetekcja HR/roster/snapshot)"),
 ):
@@ -1502,17 +1764,24 @@ def cmd_export_individual(
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    # Ustal out_dir_p i upewnij się że istnieje
+    # Ustal out_dir_p i upewnij siÄ™ ĹĽe istnieje
     if out_dir:
         out_dir_p = Path(out_dir).expanduser().resolve()
     else:
         out_dir_p = paths.out_dir / "indywidualne"
     out_dir_p.mkdir(parents=True, exist_ok=True)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
+    
+    # Ujednolicenie roota dla raportów: zawsze opieraj na --root,
+    # a nie np. paths.output_root z configa.
+    if isinstance(cfg, dict):
+        cfg["root"] = str(root_p)
+    else:
+        cfg._data["root"] = str(root_p)  # type: ignore[attr-defined]
 
     # NEW: autodetekcja HR/roster (opcjonalne)
     in_dir = _resolve_inputs_dir(root_p, cfg, inputs_dir)
@@ -1537,7 +1806,7 @@ def cmd_export_individual(
             snapshot_csv=str(inputs.snapshot_csv) if inputs.snapshot_csv else None,
         )
 
-    # Wstrzyknij out_dir do cfg (tak jak było)
+    # Wstrzyknij out_dir do cfg (tak jak byĹ‚o)
     if isinstance(cfg, dict):
         cfg.setdefault("reports", {})
         cfg["reports"]["individual_dir"] = str(out_dir_p)
@@ -1563,6 +1832,10 @@ def cmd_export_individual(
     _write_marker(paths, "export_individual")
     logger.info("[export_individual] done out_dir=%s", result_dir)
     raise typer.Exit(code=code)
+
+if __name__ == '__main__':
+    app()
+
 
 ================================================================================
 src\mrna_plum\config.py
@@ -2160,7 +2433,7 @@ def find_inputs(inputs_dir: Path) -> DetectedInputs:
 
     teachers = [p for p in csvs if has_any(p, ("nauczyciel", "teachers", "hr"))]
     roster = [p for p in csvs if has_any(p, ("uczestnik", "roster", "enrol", "enroll", "zapisani"))]
-    snapshot = [p for p in csvs if has_any(p, ("zawartosc_kurs", "snapshot", "aktywno"))]
+    snapshot = [p for p in csvs if has_any(p, ("zawartosc_kurs", "snapshot"))]
 
     return DetectedInputs(
         teachers_csv=_pick_latest(teachers),
@@ -3064,7 +3337,7 @@ from mrna_plum.store.database import EventStore
 
 
 COURSE_CTX_RX = re.compile(
-    r"Kurs:\s*(?P<course_code>[A-Z]{1,3}/[A-Za-z]{1,6}/[A-Za-z0-9_]+/(?P<semester>\d+sem)-(?P<name>.+?)-(?P<ay>\d{4}/\d{2})(?P<term>[zl])",
+    r"Kurs:\s*(?P<course_code>[A-Z]{1,3}/[A-Za-z]{1,6}/[A-Za-z0-9_]+/(?P<semester>\d+sem)-(?P<name>.+?)-(?P<ay>\d{4}/\d{2})(?P<term>[zl]))",
     re.IGNORECASE,
 )
 
@@ -3205,7 +3478,9 @@ def run_parse_events(
 
     try:
         logger.log("[PARSE] start parse-events")
-        store = EventStore(cfg)
+        _cfg_with_root = dict(cfg._data) if hasattr(cfg, "_data") else dict(cfg)
+        _cfg_with_root["_root"] = root
+        store = EventStore(_cfg_with_root)
         store.ensure_schema()
 
         # KEYS
@@ -3244,12 +3519,12 @@ def run_parse_events(
 
         # DuckDB streaming z events_raw
         import duckdb
-        con = duckdb.connect(str(Path(cfg["paths"]["db_path"])))
+        con = duckdb.connect(str((Path(root_p) / cfg["paths"]["db_path"]).resolve()))
         con.execute("PRAGMA enable_progress_bar=false;")
 
         # incremental: bierz tylko te, których row_key nie ma w canonical_raw
         query = """
-            SELECT course, time_text, time_ts_iso, row_key, payload_json, source_file
+            SELECT course, time_text, time_ts, row_key, payload_json, source_file
             FROM events_raw r
             WHERE NOT EXISTS (SELECT 1 FROM events_canonical_raw c WHERE c.row_key = r.row_key)
         """
@@ -3811,7 +4086,6 @@ def _write_metrics_long_split_streaming(
     cur = con.execute(sql)
     colnames = [d[0] for d in cur.description]
     hr_present = [c for c in colnames if c.startswith("hr_")]
-    cur.arraysize = 10_000
 
     for rec in _iter_cursor_rows(cur, batch_size=10_000):
         # If current sheet is full:
@@ -3873,7 +4147,6 @@ def _write_qa_sheet(workbook: xlsxwriter.Workbook, con, logger: logging.Logger) 
 
     sql = _select_metrics_qa_sql(con)
     cur = con.execute(sql)
-    cur.arraysize = 10_000
 
     r = 1
     for row in _iter_cursor_rows(cur, batch_size=10_000):
@@ -4232,6 +4505,31 @@ def _detect_hr_columns(con: duckdb.DuckDBPyConnection) -> List[str]:
     return [c for c in col_names if c.lower().startswith("hr_")]
 
 
+def _metrics_long_columns(con: duckdb.DuckDBPyConnection) -> set[str]:
+    rows = con.execute("DESCRIBE mart.metrics_long;").fetchall()
+    return {str(r[0]).lower() for r in rows}
+
+
+def _active_filter_sql(con: duckdb.DuckDBPyConnection) -> str:
+    """
+    Backward/forward compatible active-row filter for mart.metrics_long.
+
+    Supported variants:
+      - legacy: visible_active BOOLEAN
+      - newer: confidence_flag BOOLEAN
+      - older text snapshots: confidence_flag as text-like status
+    """
+    cols = _metrics_long_columns(con)
+    if "visible_active" in cols:
+        return "visible_active = TRUE"
+    if "confidence_flag" in cols:
+        return (
+            "(COALESCE(TRY_CAST(confidence_flag AS BOOLEAN), FALSE) = TRUE "
+            "OR LOWER(TRIM(CAST(confidence_flag AS VARCHAR))) = 'visible_active')"
+        )
+    return "TRUE"
+
+
 def _list_teachers(con: duckdb.DuckDBPyConnection) -> List[Tuple[str, str, str, str]]:
     """
     Teachers to export (metrics_long already HR-whitelisted).
@@ -4242,19 +4540,25 @@ def _list_teachers(con: duckdb.DuckDBPyConnection) -> List[Tuple[str, str, str, 
     Returns: (teacher_id, full_name, email, id_bazus)
     """
     rows = con.execute(
-        """
-        SELECT
-            teacher_id::VARCHAR AS teacher_id,
-            COALESCE(NULLIF(TRIM(full_name), ''), '') AS full_name,
-            COALESCE(NULLIF(TRIM(email), ''), '') AS email,
-            COALESCE(NULLIF(TRIM(id_bazus), ''), '') AS id_bazus
-        FROM mart.metrics_long
-        WHERE visible_active = TRUE
-        GROUP BY 1, 2, 3, 4
-        HAVING teacher_id IS NOT NULL
-           AND TRIM(teacher_id) <> ''
-           AND email IS NOT NULL
-           AND TRIM(email) <> ''
+        f"""
+        SELECT DISTINCT
+            teacher_id,
+            full_name,
+            email,
+            id_bazus
+        FROM (
+            SELECT
+                teacher_id::VARCHAR AS teacher_id,
+                COALESCE(NULLIF(TRIM(full_name), ''), '') AS full_name,
+                COALESCE(NULLIF(TRIM(email), ''), '') AS email,
+                COALESCE(NULLIF(TRIM(id_bazus::VARCHAR), ''), '') AS id_bazus
+            FROM mart.metrics_long
+            WHERE {_active_filter_sql(con)}
+        ) t
+        WHERE teacher_id IS NOT NULL
+          AND TRIM(teacher_id) <> ''
+          AND email IS NOT NULL
+          AND TRIM(email) <> ''
         ORDER BY teacher_id ASC
         """
     ).fetchall()
@@ -4273,7 +4577,7 @@ def _fetch_teacher_rows(
     Deterministic sort, count_value>0 only.
     """
     cur = con.execute(
-        """
+        f"""
         SELECT
             course_name,
             activity_label,
@@ -4283,7 +4587,7 @@ def _fetch_teacher_rows(
             (pct_wydzial / 100.0)  AS pct_wydzial_xlsx,
             (pct_uczelnia / 100.0) AS pct_uczelnia_xlsx
         FROM mart.metrics_long
-        WHERE visible_active = TRUE
+        WHERE {_active_filter_sql(con)}
           AND teacher_id::VARCHAR = ?
           AND count_value > 0
         ORDER BY
@@ -4323,7 +4627,7 @@ def _fetch_teacher_pers(
     sql = f"""
         SELECT {", ".join(select_parts)}
         FROM mart.metrics_long
-        WHERE visible_active = TRUE
+        WHERE {_active_filter_sql(con)}
           AND teacher_id::VARCHAR = ?
         GROUP BY teacher_id
     """
@@ -4755,7 +5059,7 @@ def load_keys_rules(keys_xlsx: str, sheet_name: str = "KEYS") -> List[KeyRule]:
         rx_match_txt = _norm(r[col("REGEX_DOPASOWANIA_(Opis)")])
         rx_user_txt = _norm(r[col("REGEX_USER_ID_(Opis)")])
         rx_obj_group = _norm(r[idx.get("REGEX_OBIEKT_ID_(z dopasowania)", -1)]) if "REGEX_OBIEKT_ID_(z dopasowania)" in idx else ""
-        prio_txt = _norm(r[col("PRIORYTET")])
+        prio_txt = _norm(r[idx["PRIORYTET"]]) if "PRIORYTET" in idx else "1"
         if not rx_match_txt or not tech_key:
             continue
 
@@ -4888,16 +5192,18 @@ class MatchResult:
 
 def compile_rules(keys_df: pd.DataFrame) -> list[Rule]:
     rules: list[Rule] = []
+
     for _, r in keys_df.iterrows():
         def _p(s: object) -> str:
             return "" if s is None else str(s)
 
         match_rx = re.compile(_p(r["REGEX_DOPASOWANIA_(Opis)"]))
-        user_rx_s = _p(r["REGEX_USER_ID_(Opis)"]).strip()
-        obj_rx_s  = _p(r["REGEX_OBIEKT_ID_(z dopasowania)"]).strip()
 
+        user_rx_s = _p(r["REGEX_USER_ID_(Opis)"]).strip()
         user_rx = re.compile(user_rx_s) if user_rx_s else None
-        obj_rx  = re.compile(obj_rx_s) if obj_rx_s else None
+
+        # zamiast kompilować regex, traktujemy to jako nazwę grupy
+        obj_group = _p(r["REGEX_OBIEKT_ID_(z dopasowania)"]).strip() or None
 
         count_flag = _p(r["LICZYC_DO_RAPORTU"]).upper() in ("TAK", "1", "TRUE", "YES")
 
@@ -4909,11 +5215,11 @@ def compile_rules(keys_df: pd.DataFrame) -> list[Rule]:
                 count_to_report=count_flag,
                 regex_match_desc=match_rx,
                 regex_user_id=user_rx,
-                regex_object_id=obj_rx,
+                regex_object_id=obj_group,  # ← teraz to string z nazwą grupy
                 priority=int(r["PRIORYTET"]),
             )
         )
-    # wyższy priorytet pierwszy
+
     rules.sort(key=lambda x: x.priority, reverse=True)
     return rules
 
@@ -4933,13 +5239,19 @@ def match_best_rule(description: str, rules: list[Rule]) -> Optional[MatchResult
             elif um:
                 teacher_id = um.group(0)
 
+        # object_id z nazwanej grupy regexu dopasowania
         if rule.regex_object_id:
-            # object_id może być z dopasowania głównego (m) albo z opisu
-            om = rule.regex_object_id.search(m.group(0)) or rule.regex_object_id.search(description or "")
-            if om and om.groups():
-                object_id = om.group(1)
-            elif om:
-                object_id = om.group(0)
+            gd = m.groupdict()
+            val = gd.get(rule.regex_object_id)
+            if val:
+                object_id = val
+        else:
+            # fallback: pierwsza grupa regexu dopasowania
+            try:
+                if m.groups():
+                    object_id = m.group(1)
+            except Exception:
+                object_id = None
 
         return MatchResult(
             tech_key=rule.tech_key,
@@ -5284,7 +5596,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
 
         period_where = ""
         if not sc.rebuild_full:
-            period_where = "AND ay = ? AND term = ?"
+            period_where = f"AND ay = '{sc.ay}' AND term = '{sc.term}'"
 
         _log_progress(sc.run_dir, {"step": "prepare_events_period", "rebuild_full": sc.rebuild_full, "ay": sc.ay, "term": sc.term})
 
@@ -5308,7 +5620,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
             FROM events_canonical
             WHERE counted = true
             {period_where};
-        """, ([] if sc.rebuild_full else [sc.ay, sc.term]))
+        """)
 
         _log_progress(sc.run_dir, {"step": "join_activities_state"})
 
@@ -5364,7 +5676,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
         """)
 
         if not sc.rebuild_full:
-            con.execute("DELETE FROM mart.metrics_qa WHERE ay = ? AND term = ?;", [sc.ay, sc.term])
+            con.execute(f"DELETE FROM mart.metrics_qa WHERE ay = '{sc.ay}' AND term = '{sc.term}';")
 
         con.execute("""
             INSERT INTO mart.metrics_qa
@@ -5474,7 +5786,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
 
         if not sc.rebuild_full:
             _log_progress(sc.run_dir, {"step": "incremental_delete_long", "ay": sc.ay, "term": sc.term})
-            con.execute("DELETE FROM mart.metrics_long WHERE ay = ? AND term = ?;", [sc.ay, sc.term])
+            con.execute(f"DELETE FROM mart.metrics_long WHERE ay = '{sc.ay}' AND term = '{sc.term}';")
         else:
             _log_progress(sc.run_dir, {"step": "rebuild_full_long"})
             con.execute("DELETE FROM mart.metrics_long;")
@@ -5516,7 +5828,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
         """)
 
         if not sc.rebuild_full:
-            con.execute("DELETE FROM mart.metrics_wide WHERE ay = ? AND term = ?;", [sc.ay, sc.term])
+            con.execute(f"DELETE FROM mart.metrics_wide WHERE ay = '{sc.ay}' AND term = '{sc.term}';")
         else:
             con.execute("DELETE FROM mart.metrics_wide;")
 
@@ -5537,12 +5849,12 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
                 INSERT INTO mart.metrics_wide
                 SELECT {", ".join(select_cols)}
                 FROM mart.metrics_long
-                {"WHERE ay = ? AND term = ?" if not sc.rebuild_full else ""}
+                {f"WHERE ay = '{sc.ay}' AND term = '{sc.term}'" if not sc.rebuild_full else ""}
                 GROUP BY ay, term, teacher_id, course_code;
             """
 
             if not sc.rebuild_full:
-                con.execute(wide_sql, [sc.ay, sc.term])
+                con.execute(wide_sql)
             else:
                 con.execute(wide_sql)
 
@@ -5578,7 +5890,8 @@ import pandas as pd
 class EventStore:
     def __init__(self, cfg: Dict[str, Any]):
         self.cfg = cfg
-        self.db_path = Path(cfg["paths"]["db_path"])
+        _raw = cfg["paths"]["db_path"]
+        self.db_path = Path(_raw) if Path(_raw).is_absolute() else (Path(cfg.get("_root", ".")) / _raw).resolve()
         self.parquet_root = Path(cfg["paths"]["parquet_root"]) if cfg.get("paths", {}).get("parquet_root") else None
 
     def _connect(self):
@@ -5840,7 +6153,7 @@ class DuckDbStore:
     def load_parquet_to_raw(self, parquet_path: Path) -> None:
         with self.connect() as con:
             # prosty append; w praktyce możesz TRUNCATE per-run
-            con.execute("INSERT INTO raw_logs SELECT * FROM read_parquet(?)", [str(parquet_path)])
+            con.execute(f"INSERT INTO raw_logs SELECT * FROM read_parquet('{str(parquet_path)}')")
 
 
 
@@ -5869,7 +6182,7 @@ def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
             course       TEXT NOT NULL,
             time_text    TEXT,
             time_ts      TIMESTAMP,
-            row_key      TEXT NOT NULL,
+            row_key      TEXT NOT NULL UNIQUE,
             payload_json TEXT NOT NULL,
             source_file  TEXT NOT NULL,
             inserted_at  TIMESTAMP DEFAULT now()
@@ -5936,14 +6249,9 @@ def merge_stage_into_events_raw(con: duckdb.DuckDBPyConnection) -> int:
     """
     res = con.execute(
         """
-        INSERT INTO events_raw(course, time_text, time_ts, row_key, payload_json, source_file)
+        INSERT OR IGNORE INTO events_raw(course, time_text, time_ts, row_key, payload_json, source_file)
         SELECT s.course, s.time_text, s.time_ts, s.row_key, s.payload_json, s.source_file
-        FROM _events_raw_stage s
-        LEFT JOIN events_raw e
-          ON e.course = s.course
-         AND e.row_key = s.row_key
-         AND e.payload_json = s.payload_json
-        WHERE e.course IS NULL;
+        FROM _events_raw_stage s;
         """
     )
     # DuckDB python: rowcount by cursor.rowcount is not always reliable; use changes()
@@ -6610,7 +6918,7 @@ src\mrna_plum.egg-info\entry_points.txt
 ================================================================================
 
 [console_scripts]
-mrna_plum = mrna_plum.cli:app
+rna_plum = mrna_plum.cli:app
 
 
 ================================================================================
@@ -6646,12 +6954,15 @@ openpyxl>=3.1.0
 src\mrna_plum.egg-info\SOURCES.txt
 ================================================================================
 
+README.md
 pyproject.toml
 src/mrna_plum/__init__.py
 src/mrna_plum/__main__.py
+src/mrna_plum/cfg_helpers.py
 src/mrna_plum/cli.py
 src/mrna_plum/config.py
 src/mrna_plum/errors.py
+src/mrna_plum/init_project.py
 src/mrna_plum/logging_run.py
 src/mrna_plum/paths.py
 src/mrna_plum.egg-info/PKG-INFO
@@ -6660,24 +6971,40 @@ src/mrna_plum.egg-info/dependency_links.txt
 src/mrna_plum.egg-info/entry_points.txt
 src/mrna_plum.egg-info/requires.txt
 src/mrna_plum.egg-info/top_level.txt
+src/mrna_plum/activities/__init__.py
+src/mrna_plum/activities/activities_state.py
+src/mrna_plum/activities/snapshots_load.py
+src/mrna_plum/import/__init__.py
+src/mrna_plum/import/import_roster.py
+src/mrna_plum/inputs/__init__.py
+src/mrna_plum/inputs/autodetect.py
 src/mrna_plum/io/__init__.py
 src/mrna_plum/io/csv_read.py
 src/mrna_plum/io/excel_keys.py
 src/mrna_plum/merge/__init__.py
 src/mrna_plum/merge/merge_logs.py
+src/mrna_plum/merge/test_merge_logs.py
 src/mrna_plum/parse/__init__.py
 src/mrna_plum/parse/context.py
+src/mrna_plum/parse/parse_events.py
 src/mrna_plum/parse/parse_logs.py
 src/mrna_plum/reports/__init__.py
 src/mrna_plum/reports/export_excel.py
 src/mrna_plum/reports/export_individual.py
 src/mrna_plum/rules/__init__.py
+src/mrna_plum/rules/activity_rules.py
 src/mrna_plum/rules/engine.py
 src/mrna_plum/rules/models.py
 src/mrna_plum/stats/__init__.py
 src/mrna_plum/stats/compute_stats.py
 src/mrna_plum/store/__init__.py
+src/mrna_plum/store/database.py
 src/mrna_plum/store/duckdb_store.py
+src/mrna_plum/tests/__init__.py
+src/mrna_plum/tests/test_build_activities_state.py
+src/mrna_plum/tests/test_compute_stats.py
+src/mrna_plum/tests/test_export_excel.py
+src/mrna_plum/tests/test_export_individual.py
 src/mrna_plum/ui_bridge/__init__.py
 src/mrna_plum/ui_bridge/progress.py
 

@@ -143,6 +143,31 @@ def _detect_hr_columns(con: duckdb.DuckDBPyConnection) -> List[str]:
     return [c for c in col_names if c.lower().startswith("hr_")]
 
 
+def _metrics_long_columns(con: duckdb.DuckDBPyConnection) -> set[str]:
+    rows = con.execute("DESCRIBE mart.metrics_long;").fetchall()
+    return {str(r[0]).lower() for r in rows}
+
+
+def _active_filter_sql(con: duckdb.DuckDBPyConnection) -> str:
+    """
+    Backward/forward compatible active-row filter for mart.metrics_long.
+
+    Supported variants:
+      - legacy: visible_active BOOLEAN
+      - newer: confidence_flag BOOLEAN
+      - older text snapshots: confidence_flag as text-like status
+    """
+    cols = _metrics_long_columns(con)
+    if "visible_active" in cols:
+        return "visible_active = TRUE"
+    if "confidence_flag" in cols:
+        return (
+            "(COALESCE(TRY_CAST(confidence_flag AS BOOLEAN), FALSE) = TRUE "
+            "OR LOWER(TRIM(CAST(confidence_flag AS VARCHAR))) = 'visible_active')"
+        )
+    return "TRUE"
+
+
 def _list_teachers(con: duckdb.DuckDBPyConnection) -> List[Tuple[str, str, str, str]]:
     """
     Teachers to export (metrics_long already HR-whitelisted).
@@ -153,19 +178,25 @@ def _list_teachers(con: duckdb.DuckDBPyConnection) -> List[Tuple[str, str, str, 
     Returns: (teacher_id, full_name, email, id_bazus)
     """
     rows = con.execute(
-        """
-        SELECT
-            teacher_id::VARCHAR AS teacher_id,
-            COALESCE(NULLIF(TRIM(full_name), ''), '') AS full_name,
-            COALESCE(NULLIF(TRIM(email), ''), '') AS email,
-            COALESCE(NULLIF(TRIM(id_bazus), ''), '') AS id_bazus
-        FROM mart.metrics_long
-        WHERE visible_active = TRUE
-        GROUP BY 1, 2, 3, 4
-        HAVING teacher_id IS NOT NULL
-           AND TRIM(teacher_id) <> ''
-           AND email IS NOT NULL
-           AND TRIM(email) <> ''
+        f"""
+        SELECT DISTINCT
+            teacher_id,
+            full_name,
+            email,
+            id_bazus
+        FROM (
+            SELECT
+                teacher_id::VARCHAR AS teacher_id,
+                COALESCE(NULLIF(TRIM(full_name), ''), '') AS full_name,
+                COALESCE(NULLIF(TRIM(email), ''), '') AS email,
+                COALESCE(NULLIF(TRIM(id_bazus::VARCHAR), ''), '') AS id_bazus
+            FROM mart.metrics_long
+            WHERE {_active_filter_sql(con)}
+        ) t
+        WHERE teacher_id IS NOT NULL
+          AND TRIM(teacher_id) <> ''
+          AND email IS NOT NULL
+          AND TRIM(email) <> ''
         ORDER BY teacher_id ASC
         """
     ).fetchall()
@@ -184,7 +215,7 @@ def _fetch_teacher_rows(
     Deterministic sort, count_value>0 only.
     """
     cur = con.execute(
-        """
+        f"""
         SELECT
             course_name,
             activity_label,
@@ -194,7 +225,7 @@ def _fetch_teacher_rows(
             (pct_wydzial / 100.0)  AS pct_wydzial_xlsx,
             (pct_uczelnia / 100.0) AS pct_uczelnia_xlsx
         FROM mart.metrics_long
-        WHERE visible_active = TRUE
+        WHERE {_active_filter_sql(con)}
           AND teacher_id::VARCHAR = ?
           AND count_value > 0
         ORDER BY
@@ -234,7 +265,7 @@ def _fetch_teacher_pers(
     sql = f"""
         SELECT {", ".join(select_parts)}
         FROM mart.metrics_long
-        WHERE visible_active = TRUE
+        WHERE {_active_filter_sql(con)}
           AND teacher_id::VARCHAR = ?
         GROUP BY teacher_id
     """
