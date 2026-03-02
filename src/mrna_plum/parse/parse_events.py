@@ -205,7 +205,7 @@ def run_parse_events(
 
         # incremental: bierz tylko te, których row_key nie ma w canonical_raw
         query = """
-            SELECT course, time_text, time_ts_iso, row_key, payload_json, source_file
+            SELECT course, time_text, time_ts, row_key, payload_json, source_file
             FROM events_raw r
             WHERE NOT EXISTS (SELECT 1 FROM events_canonical_raw c WHERE c.row_key = r.row_key)
         """
