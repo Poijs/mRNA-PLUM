@@ -79,7 +79,7 @@ def load_keys_rules(keys_xlsx: str, sheet_name: str = "KEYS") -> List[KeyRule]:
         rx_match_txt = _norm(r[col("REGEX_DOPASOWANIA_(Opis)")])
         rx_user_txt = _norm(r[col("REGEX_USER_ID_(Opis)")])
         rx_obj_group = _norm(r[idx.get("REGEX_OBIEKT_ID_(z dopasowania)", -1)]) if "REGEX_OBIEKT_ID_(z dopasowania)" in idx else ""
-        prio_txt = _norm(r[col("PRIORYTET")])
+        prio_txt = _norm(r[idx["PRIORYTET"]]) if "PRIORYTET" in idx else "1"
         if not rx_match_txt or not tech_key:
             continue
 

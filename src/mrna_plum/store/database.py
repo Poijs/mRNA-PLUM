@@ -11,7 +11,8 @@ import pandas as pd
 class EventStore:
     def __init__(self, cfg: Dict[str, Any]):
         self.cfg = cfg
-        self.db_path = Path(cfg["paths"]["db_path"])
+        _raw = cfg["paths"]["db_path"]
+        self.db_path = Path(_raw) if Path(_raw).is_absolute() else (Path(cfg.get("_root", ".")) / _raw).resolve()
         self.parquet_root = Path(cfg["paths"]["parquet_root"]) if cfg.get("paths", {}).get("parquet_root") else None
 
     def _connect(self):

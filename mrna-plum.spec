@@ -5,8 +5,16 @@ a = Analysis(
     ['src\\mrna_plum\\__main__.py'],
     pathex=['src'],
     binaries=[],
-    datas=[],
-    hiddenimports=[],
+    datas=[
+        ('.venv\\Lib\\site-packages\\rich', 'rich'),
+    ],
+    hiddenimports=[
+        'tzdata',
+        'duckdb',
+        'mrna_plum.merge.merge_logs',
+        'mrna_plum.store.duckdb_store',
+        'rich._unicode_data',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

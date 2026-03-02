@@ -18,7 +18,7 @@ from mrna_plum.store.database import EventStore
 
 
 COURSE_CTX_RX = re.compile(
-    r"Kurs:\s*(?P<course_code>[A-Z]{1,3}/[A-Za-z]{1,6}/[A-Za-z0-9_]+/(?P<semester>\d+sem)-(?P<name>.+?)-(?P<ay>\d{4}/\d{2})(?P<term>[zl])",
+    r"Kurs:\s*(?P<course_code>[A-Z]{1,3}/[A-Za-z]{1,6}/[A-Za-z0-9_]+/(?P<semester>\d+sem)-(?P<name>.+?)-(?P<ay>\d{4}/\d{2})(?P<term>[zl]))",
     re.IGNORECASE,
 )
 
@@ -159,7 +159,9 @@ def run_parse_events(
 
     try:
         logger.log("[PARSE] start parse-events")
-        store = EventStore(cfg)
+        _cfg_with_root = dict(cfg._data) if hasattr(cfg, "_data") else dict(cfg)
+        _cfg_with_root["_root"] = root
+        store = EventStore(_cfg_with_root)
         store.ensure_schema()
 
         # KEYS
@@ -198,7 +200,7 @@ def run_parse_events(
 
         # DuckDB streaming z events_raw
         import duckdb
-        con = duckdb.connect(str(Path(cfg["paths"]["db_path"])))
+        con = duckdb.connect(str((Path(root_p) / cfg["paths"]["db_path"]).resolve()))
         con.execute("PRAGMA enable_progress_bar=false;")
 
         # incremental: bierz tylko te, których row_key nie ma w canonical_raw

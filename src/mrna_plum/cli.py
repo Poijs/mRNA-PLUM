@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 import functools
 
 from pathlib import Path
@@ -17,7 +17,7 @@ from mrna_plum.inputs.autodetect import find_inputs, InputValidationError
 
 app = typer.Typer(add_completion=False)
 
-# Exit codes (wg ustaleń)
+# Exit codes (wg ustaleĹ„)
 EC_OK = 0
 EC_CONFIG = 2
 EC_INPUT = 10
@@ -41,7 +41,7 @@ def _ensure_dirs(paths: ProjectPaths) -> None:
     paths.run_dir.mkdir(parents=True, exist_ok=True)
     paths.data_dir.mkdir(parents=True, exist_ok=True)
     paths.parquet_dir.mkdir(parents=True, exist_ok=True)
-    # opcjonalnie: out dir jeśli masz w ProjectPaths
+    # opcjonalnie: out dir jeĹ›li masz w ProjectPaths
     try:
         paths.out_dir.mkdir(parents=True, exist_ok=True)  # type: ignore[attr-defined]
     except Exception:
@@ -88,7 +88,7 @@ def _resolve_inputs_dir(root: Path, cfg: Any, inputs_dir_opt: str | None) -> Pat
     """
     Priorytet:
     1) CLI --inputs-dir
-    2) config.yaml: inputs.inputs_dir (jeśli istnieje)
+    2) config.yaml: inputs.inputs_dir (jeĹ›li istnieje)
     """
     if inputs_dir_opt:
         return Path(inputs_dir_opt).expanduser().resolve()
@@ -98,9 +98,9 @@ def _resolve_inputs_dir(root: Path, cfg: Any, inputs_dir_opt: str | None) -> Pat
         if isinstance(cfg, dict):
             v = (cfg.get("inputs") or {}).get("inputs_dir")
         else:
-            # jeśli kiedyś inputs będzie atrybutem
+            # jeĹ›li kiedyĹ› inputs bÄ™dzie atrybutem
             v = getattr(getattr(cfg, "inputs", None), "inputs_dir", None)
-            # Twoja konfiguracja używa często cfg._data jako słownik
+            # Twoja konfiguracja uĹĽywa czÄ™sto cfg._data jako sĹ‚ownik
             if v is None and hasattr(cfg, "_data"):
                 inputs_sec = cfg._data.get("inputs") or {}  # type: ignore[attr-defined]
                 if isinstance(inputs_sec, dict):
@@ -129,7 +129,7 @@ def _emit_inputs_detected(progress: ProgressWriter, inputs: Any) -> None:
             "teachers_csv": str(inputs.teachers_csv) if getattr(inputs, "teachers_csv", None) else None,
             "roster_csv": str(inputs.roster_csv) if getattr(inputs, "roster_csv", None) else None,
             "snapshot_csv": str(inputs.snapshot_csv) if getattr(inputs, "snapshot_csv", None) else None,
-            # opcjonalne mapowania (jeśli find_inputs je zwraca)
+            # opcjonalne mapowania (jeĹ›li find_inputs je zwraca)
             "teachers_map": getattr(inputs, "teachers_map", None),
             "roster_map": getattr(inputs, "roster_map", None),
             "snapshot_map": getattr(inputs, "snapshot_map", None),
@@ -141,7 +141,7 @@ def _inject_inputs_into_cfg(cfg: Any, teachers_csv: str | None, roster_csv: str 
     """
     Wstrzykuje wykryte pliki do cfg:
       cfg.inputs.teachers_csv / cfg.inputs.roster_csv / cfg.inputs.snapshot_csv
-    Obsługuje cfg jako dict lub obiekt z _data.
+    ObsĹ‚uguje cfg jako dict lub obiekt z _data.
     """
     if isinstance(cfg, dict):
         cfg.setdefault("inputs", {})
@@ -177,7 +177,7 @@ def cmd_init(
     root: str = typer.Option(..., "--root", help="Root folder projektu (np. ThisWorkbook.Path)"),
 ):
     """
-    Tworzy podstawową strukturę folderów projektu.
+    Tworzy podstawowÄ… strukturÄ™ folderĂłw projektu.
     """
     root_p = _resolve_root(root)
 
@@ -194,28 +194,29 @@ def cmd_init(
 def cmd_merge_logs(
     root: str = typer.Option(..., "--root", help="Root folder passed from VBA (ThisWorkbook.Path)"),
     config: str | None = typer.Option(None, "--config", help="Config path; default {root}/config.yaml"),
+    inputs_dir: str | None = typer.Option(None, "--inputs-dir", help="Ignorowane przez merge-logs"),
     mode: str = typer.Option(
         "duckdb",
         "--mode",
-        help="duckdb (pipeline B) | parquet (pipeline A → merged_raw.parquet)",
+        help="duckdb (pipeline B) | parquet (pipeline A â†’ merged_raw.parquet)",
         case_sensitive=False,
     ),
 ):
     """
-    Merge logów CSV z Moodle/PLUM.
+    Merge logĂłw CSV z Moodle/PLUM.
 
     mode=parquet:
-        CSV → merged_raw.parquet (pipeline A)
+        CSV â†’ merged_raw.parquet (pipeline A)
 
     mode=duckdb:
-        CSV → DuckDB raw (pipeline B / staging)
+        CSV â†’ DuckDB raw (pipeline B / staging)
     """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
@@ -257,7 +258,7 @@ def cmd_merge_logs(
         logger.info("[merge] done rows=%s parquet=%s", total_rows, merged_parquet)
         raise typer.Exit(code=EC_OK)
 
-    # mode == duckdb → pipeline B
+    # mode == duckdb â†’ pipeline B
     from .store.duckdb_store import open_store
     from .merge.merge_logs import merge_logs_into_duckdb
 
@@ -298,19 +299,19 @@ def cmd_build_db(
     config: str | None = typer.Option(None, "--config"),
 ):
     """
-    Pipeline A: merged_raw.parquet → parsed.parquet → DuckDB(raw_logs)
+    Pipeline A: merged_raw.parquet â†’ parsed.parquet â†’ DuckDB(raw_logs)
     """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
 
-    # KEYS → rules
+    # KEYS â†’ rules
     from .io.excel_keys import load_keys_sheet
     from .rules.engine import compile_rules
 
@@ -352,17 +353,17 @@ def cmd_build_db(
 def cmd_parse_events(
     root: str = typer.Option(..., "--root", help="Root projektu"),
     config: str | None = typer.Option(None, "--config", help="config.yaml; default {root}/config.yaml"),
-    keys_xlsx: str | None = typer.Option(None, "--keys-xlsx", help="Override ścieżki KEYS.xlsx/KEYS workbook"),
+    keys_xlsx: str | None = typer.Option(None, "--keys-xlsx", help="Override Ĺ›cieĹĽki KEYS.xlsx/KEYS workbook"),
 ):
     """
-    Pipeline B: raw (DuckDB) → events_canonical (DuckDB)
+    Pipeline B: raw (DuckDB) â†’ events_canonical (DuckDB)
     """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
@@ -396,24 +397,24 @@ def cmd_build_activities_state(
     inputs_dir: str | None = typer.Option(
         None,
         "--inputs-dir",
-        help="Folder INPUTS_DIR (autodetekcja plików HR/roster/snapshot)",
+        help="Folder INPUTS_DIR (autodetekcja plikĂłw HR/roster/snapshot)",
     ),
     # CHANGED: snapshot-file optional (override)
     snapshot_file: str | None = typer.Option(
         None,
         "--snapshot-file",
-        help="Override: CSV '*_zawartosc_kursow.csv' (jeśli nie używasz inputs-dir)",
+        help="Override: CSV '*_zawartosc_kursow.csv' (jeĹ›li nie uĹĽywasz inputs-dir)",
     ),
 ):
     """
-    Pipeline B: snapshot CSV → raw.activities_snapshot → mart.activities_state
+    Pipeline B: snapshot CSV â†’ raw.activities_snapshot â†’ mart.activities_state
     """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
@@ -443,7 +444,7 @@ def cmd_build_activities_state(
             if not inputs.roster_csv:
                 progress.emit("inputs", "warning", "Roster missing (*_raport_uczestnikow.csv) - students_enrolled will be '-'")
 
-            # wstrzyknij do cfg (żeby dalsze kroki mogły korzystać)
+            # wstrzyknij do cfg (ĹĽeby dalsze kroki mogĹ‚y korzystaÄ‡)
             _inject_inputs_into_cfg(
                 cfg,
                 teachers_csv=str(inputs.teachers_csv) if inputs.teachers_csv else None,
@@ -521,14 +522,14 @@ def cmd_compute_stats(
     config: str | None = typer.Option(None, "--config"),
 ):
     """
-    Ujednolicone compute-stats: wywołuje stats.compute_stats(root, ay, term).
+    Ujednolicone compute-stats: wywoĹ‚uje stats.compute_stats(root, ay, term).
     """
     root_p = _resolve_root(root)
-    _ = _resolve_config(root_p, config)  # na przyszłość
+    _ = _resolve_config(root_p, config)  # na przyszĹ‚oĹ›Ä‡
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     progress.emit("stats", "start", "Computing stats", extra={"ay": ay, "term": term})
@@ -548,20 +549,20 @@ def cmd_compute_stats(
 @_main_guard
 def cmd_export_excel(
     root: str = typer.Option(..., "--root"),
-    db_path: str | None = typer.Option(None, "--db-path", help="Override ścieżki do DuckDB; default z ProjectPaths"),
+    db_path: str | None = typer.Option(None, "--db-path", help="Override Ĺ›cieĹĽki do DuckDB; default z ProjectPaths"),
     config: str | None = typer.Option(None, "--config"),
     # NEW: INPUTS_DIR (opcjonalne, ale przydatne do metryczki/roster w raportach)
     inputs_dir: str | None = typer.Option(None, "--inputs-dir", help="Folder INPUTS_DIR (autodetekcja HR/roster)"),
 ):
     """
-    Eksport agregatów do Excela (docelowo: export_summary_excel).
+    Eksport agregatĂłw do Excela (docelowo: export_summary_excel).
     """
     root_p = _resolve_root(root)
     cfg_p = _resolve_config(root_p, config)
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
@@ -616,7 +617,7 @@ def cmd_export_excel(
 def cmd_export_individual(
     root: str = typer.Option(..., "--root"),
     config: str | None = typer.Option(None, "--config"),
-    out_dir: str | None = typer.Option(None, "--out-dir", help="Override folderu wyjściowego na XLSX"),
+    out_dir: str | None = typer.Option(None, "--out-dir", help="Override folderu wyjĹ›ciowego na XLSX"),
     # NEW: INPUTS_DIR
     inputs_dir: str | None = typer.Option(None, "--inputs-dir", help="Folder INPUTS_DIR (autodetekcja HR/roster/snapshot)"),
 ):
@@ -628,14 +629,14 @@ def cmd_export_individual(
     paths = ProjectPaths(root=root_p)
     _ensure_dirs(paths)
 
-    # Ustal out_dir_p i upewnij się że istnieje
+    # Ustal out_dir_p i upewnij siÄ™ ĹĽe istnieje
     if out_dir:
         out_dir_p = Path(out_dir).expanduser().resolve()
     else:
         out_dir_p = paths.out_dir / "indywidualne"
     out_dir_p.mkdir(parents=True, exist_ok=True)
 
-    logger = setup_file_logger(paths.run_dir / "run.log")
+    logger = setup_file_logger(paths.run_dir / "python.log")
     progress = ProgressWriter(paths.run_dir / "progress.jsonl")
 
     cfg = load_config(cfg_p)
@@ -663,7 +664,7 @@ def cmd_export_individual(
             snapshot_csv=str(inputs.snapshot_csv) if inputs.snapshot_csv else None,
         )
 
-    # Wstrzyknij out_dir do cfg (tak jak było)
+    # Wstrzyknij out_dir do cfg (tak jak byĹ‚o)
     if isinstance(cfg, dict):
         cfg.setdefault("reports", {})
         cfg["reports"]["individual_dir"] = str(out_dir_p)
