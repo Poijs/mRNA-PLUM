@@ -296,7 +296,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
 
         period_where = ""
         if not sc.rebuild_full:
-            period_where = "AND ay = ? AND term = ?"
+            period_where = f"AND ay = '{sc.ay}' AND term = '{sc.term}'"
 
         _log_progress(sc.run_dir, {"step": "prepare_events_period", "rebuild_full": sc.rebuild_full, "ay": sc.ay, "term": sc.term})
 
@@ -320,7 +320,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
             FROM events_canonical
             WHERE counted = true
             {period_where};
-        """, ([] if sc.rebuild_full else [sc.ay, sc.term]))
+        """)
 
         _log_progress(sc.run_dir, {"step": "join_activities_state"})
 
@@ -376,7 +376,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
         """)
 
         if not sc.rebuild_full:
-            con.execute("DELETE FROM mart.metrics_qa WHERE ay = ? AND term = ?;", [sc.ay, sc.term])
+            con.execute(f"DELETE FROM mart.metrics_qa WHERE ay = '{sc.ay}' AND term = '{sc.term}';")
 
         con.execute("""
             INSERT INTO mart.metrics_qa
@@ -486,7 +486,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
 
         if not sc.rebuild_full:
             _log_progress(sc.run_dir, {"step": "incremental_delete_long", "ay": sc.ay, "term": sc.term})
-            con.execute("DELETE FROM mart.metrics_long WHERE ay = ? AND term = ?;", [sc.ay, sc.term])
+            con.execute(f"DELETE FROM mart.metrics_long WHERE ay = '{sc.ay}' AND term = '{sc.term}';")
         else:
             _log_progress(sc.run_dir, {"step": "rebuild_full_long"})
             con.execute("DELETE FROM mart.metrics_long;")
@@ -528,7 +528,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
         """)
 
         if not sc.rebuild_full:
-            con.execute("DELETE FROM mart.metrics_wide WHERE ay = ? AND term = ?;", [sc.ay, sc.term])
+            con.execute(f"DELETE FROM mart.metrics_wide WHERE ay = '{sc.ay}' AND term = '{sc.term}';")
         else:
             con.execute("DELETE FROM mart.metrics_wide;")
 
@@ -549,12 +549,12 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
                 INSERT INTO mart.metrics_wide
                 SELECT {", ".join(select_cols)}
                 FROM mart.metrics_long
-                {"WHERE ay = ? AND term = ?" if not sc.rebuild_full else ""}
+                {f"WHERE ay = '{sc.ay}' AND term = '{sc.term}'" if not sc.rebuild_full else ""}
                 GROUP BY ay, term, teacher_id, course_code;
             """
 
             if not sc.rebuild_full:
-                con.execute(wide_sql, [sc.ay, sc.term])
+                con.execute(wide_sql)
             else:
                 con.execute(wide_sql)
 

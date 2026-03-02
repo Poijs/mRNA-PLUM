@@ -250,7 +250,6 @@ def _write_metrics_long_split_streaming(
     cur = con.execute(sql)
     colnames = [d[0] for d in cur.description]
     hr_present = [c for c in colnames if c.startswith("hr_")]
-    cur.arraysize = 10_000
 
     for rec in _iter_cursor_rows(cur, batch_size=10_000):
         # If current sheet is full:
@@ -312,7 +311,6 @@ def _write_qa_sheet(workbook: xlsxwriter.Workbook, con, logger: logging.Logger) 
 
     sql = _select_metrics_qa_sql(con)
     cur = con.execute(sql)
-    cur.arraysize = 10_000
 
     r = 1
     for row in _iter_cursor_rows(cur, batch_size=10_000):

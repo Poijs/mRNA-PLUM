@@ -42,7 +42,7 @@ def find_inputs(inputs_dir: Path) -> DetectedInputs:
 
     teachers = [p for p in csvs if has_any(p, ("nauczyciel", "teachers", "hr"))]
     roster = [p for p in csvs if has_any(p, ("uczestnik", "roster", "enrol", "enroll", "zapisani"))]
-    snapshot = [p for p in csvs if has_any(p, ("zawartosc_kurs", "snapshot", "aktywno"))]
+    snapshot = [p for p in csvs if has_any(p, ("zawartosc_kurs", "snapshot"))]
 
     return DetectedInputs(
         teachers_csv=_pick_latest(teachers),

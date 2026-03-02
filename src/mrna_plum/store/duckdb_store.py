@@ -53,7 +53,7 @@ class DuckDbStore:
     def load_parquet_to_raw(self, parquet_path: Path) -> None:
         with self.connect() as con:
             # prosty append; w praktyce możesz TRUNCATE per-run
-            con.execute("INSERT INTO raw_logs SELECT * FROM read_parquet(?)", [str(parquet_path)])
+            con.execute(f"INSERT INTO raw_logs SELECT * FROM read_parquet('{str(parquet_path)}')")
 
 
 
@@ -82,7 +82,7 @@ def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
             course       TEXT NOT NULL,
             time_text    TEXT,
             time_ts      TIMESTAMP,
-            row_key      TEXT NOT NULL,
+            row_key      TEXT NOT NULL UNIQUE,
             payload_json TEXT NOT NULL,
             source_file  TEXT NOT NULL,
             inserted_at  TIMESTAMP DEFAULT now()
@@ -149,14 +149,9 @@ def merge_stage_into_events_raw(con: duckdb.DuckDBPyConnection) -> int:
     """
     res = con.execute(
         """
-        INSERT INTO events_raw(course, time_text, time_ts, row_key, payload_json, source_file)
+        INSERT OR IGNORE INTO events_raw(course, time_text, time_ts, row_key, payload_json, source_file)
         SELECT s.course, s.time_text, s.time_ts, s.row_key, s.payload_json, s.source_file
-        FROM _events_raw_stage s
-        LEFT JOIN events_raw e
-          ON e.course = s.course
-         AND e.row_key = s.row_key
-         AND e.payload_json = s.payload_json
-        WHERE e.course IS NULL;
+        FROM _events_raw_stage s;
         """
     )
     # DuckDB python: rowcount by cursor.rowcount is not always reliable; use changes()

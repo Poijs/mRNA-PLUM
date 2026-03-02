@@ -140,7 +140,7 @@ def load_plum_snapshot_file_into_duckdb(
                 row.row_key,
             ],
         )
-        inserted += int(con.execute("select changes()").fetchone()[0])
+        inserted += 1
 
         if max_captured_at is None or row.captured_at > max_captured_at:
             max_captured_at = row.captured_at

@@ -125,7 +125,7 @@ def _emit_inputs_detected(progress: ProgressWriter, inputs: Any) -> None:
         "detected",
         "Inputs autodetected",
         extra={
-            "inputs_dir": str(inputs.inputs_dir),
+            "inputs_dir": str(getattr(inputs, "inputs_dir", None)),
             "teachers_csv": str(inputs.teachers_csv) if getattr(inputs, "teachers_csv", None) else None,
             "roster_csv": str(inputs.roster_csv) if getattr(inputs, "roster_csv", None) else None,
             "snapshot_csv": str(inputs.snapshot_csv) if getattr(inputs, "snapshot_csv", None) else None,
