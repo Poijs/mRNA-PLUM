@@ -177,6 +177,8 @@ def _list_teachers(con: duckdb.DuckDBPyConnection) -> List[Tuple[str, str, str, 
     Deterministic order: teacher_id asc.
     Returns: (teacher_id, full_name, email, id_bazus)
     """
+    _ml_cols = [r[0] for r in con.execute('DESCRIBE mart.metrics_long').fetchall()]
+    id_bazus_expr = "COALESCE(NULLIF(TRIM(id_bazus::VARCHAR), ''), '')" if 'id_bazus' in _ml_cols else "''"
     rows = con.execute(
         f"""
         SELECT DISTINCT
@@ -189,7 +191,7 @@ def _list_teachers(con: duckdb.DuckDBPyConnection) -> List[Tuple[str, str, str, 
                 teacher_id::VARCHAR AS teacher_id,
                 COALESCE(NULLIF(TRIM(full_name), ''), '') AS full_name,
                 COALESCE(NULLIF(TRIM(email), ''), '') AS email,
-                COALESCE(NULLIF(TRIM(id_bazus::VARCHAR), ''), '') AS id_bazus
+                {id_bazus_expr} AS id_bazus
             FROM mart.metrics_long
             WHERE {_active_filter_sql(con)}
         ) t
@@ -217,7 +219,7 @@ def _fetch_teacher_rows(
     cur = con.execute(
         f"""
         SELECT
-            course_name,
+            course_code AS course_name,
             activity_label,
             count_value,
             (pct_course / 100.0)   AS pct_course_xlsx,
@@ -226,13 +228,12 @@ def _fetch_teacher_rows(
             (pct_uczelnia / 100.0) AS pct_uczelnia_xlsx
         FROM mart.metrics_long
         WHERE {_active_filter_sql(con)}
-          AND teacher_id::VARCHAR = ?
+          AND teacher_id::VARCHAR = '{teacher_id}'
           AND count_value > 0
         ORDER BY
-            course_name ASC,
+            course_code ASC,
             activity_label ASC
-        """,
-        [teacher_id],
+        """
     )
     while True:
         batch = cur.fetchmany(10_000)
@@ -252,11 +253,13 @@ def _fetch_teacher_pers(
     We take MAX(...) as safe collapse (same per teacher).
     Assumes email + id_bazus exist in schema (per your rules).
     """
+    _ml_cols2 = [r[0] for r in con.execute('DESCRIBE mart.metrics_long').fetchall()]
+    _id_bazus_part = "MAX(COALESCE(NULLIF(TRIM(id_bazus), ''), '')) AS id_bazus" if 'id_bazus' in _ml_cols2 else "'' AS id_bazus"
     select_parts = [
         "teacher_id::VARCHAR AS teacher_id",
         "MAX(COALESCE(NULLIF(TRIM(full_name), ''), '')) AS full_name",
         "MAX(COALESCE(NULLIF(TRIM(email), ''), '')) AS email",
-        "MAX(COALESCE(NULLIF(TRIM(id_bazus), ''), '')) AS id_bazus",
+        _id_bazus_part,
     ]
 
     for c in hr_cols:
@@ -266,10 +269,10 @@ def _fetch_teacher_pers(
         SELECT {", ".join(select_parts)}
         FROM mart.metrics_long
         WHERE {_active_filter_sql(con)}
-          AND teacher_id::VARCHAR = $1
+          AND teacher_id::VARCHAR = '{teacher_id}'
         GROUP BY teacher_id
     """
-    row = con.execute(sql, [teacher_id]).fetchone()
+    row = con.execute(sql).fetchone()
     if row is None:
         base = {"teacher_id": teacher_id, "full_name": "", "email": "", "id_bazus": ""}
         for c in hr_cols:
@@ -599,7 +602,7 @@ def cli_export_individual(root: str, config: Any) -> int:
     if not db_path:
         raise RuntimeError("cfg.paths.db_path is required for export-individual")
 
-    con = duckdb.connect(str(db_path))
+    con = duckdb.connect(str(Path(root) / db_path))
     try:
         code, _out = export_individual_reports(con, config)
         return int(code)

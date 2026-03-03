@@ -152,3 +152,9 @@
 {"step": "incremental_delete_long", "ay": "2025/26", "term": "l", "ts": "2026-03-03T00:14:11.397455+00:00"}
 {"step": "insert_metrics_long", "ts": "2026-03-03T00:14:11.398422+00:00"}
 {"step": "done", "ts": "2026-03-03T00:14:11.501863+00:00"}
+{"teacher_id": "10510", "status": "SKIPPED_NO_BAZUS", "message": "Missing BAZUS ID for filename", "output_file": null, "rows_exported": 0, "ts": "2026-03-03 12:30:57"}
+{"teacher_id": "7997", "status": "ERROR", "message": "CatalogException: Catalog Error: Table with name metrics_long does not exist!\nDid you mean \"individual_export_qa\"?\n\nLINE 1: DESCRIBE mart.metrics_long;\n                 ^", "output_file": null, "rows_exported": 0, "ts": "2026-03-03 12:30:57"}
+{"teacher_id": "8786", "status": "SKIPPED_NO_BAZUS", "message": "Missing BAZUS ID for filename", "output_file": null, "rows_exported": 0, "ts": "2026-03-03 12:30:57"}
+{"teacher_id": "7686", "status": "ERROR", "message": "CatalogException: Catalog Error: Table with name metrics_long does not exist!\nDid you mean \"individual_export_qa\"?\n\nLINE 1: DESCRIBE mart.metrics_long;\n                 ^", "output_file": null, "rows_exported": 0, "ts": "2026-03-03 12:30:57"}
+{"teacher_id": "7111", "status": "ERROR", "message": "CatalogException: Catalog Error: Table with name metrics_long does not exist!\nDid you mean \"individual_export_qa\"?\n\nLINE 1: DESCRIBE mart.metrics_long;\n                 ^", "output_file": null, "rows_exported": 0, "ts": "2026-03-03 12:30:57"}
+{"teacher_id": "7905", "status": "ERROR", "message": "CatalogException: Catalog Error: Table with name metrics_long does not exist!\nDid you mean \"individual_export_qa\"?\n\nLINE 1: DESCRIBE mart.metrics_long;\n                 ^", "output_file": null, "rows_exported": 0, "ts": "2026-03-03 12:30:57"}

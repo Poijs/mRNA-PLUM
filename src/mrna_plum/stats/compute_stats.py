@@ -102,7 +102,7 @@ def _read_mapping_teacher_email(path: Optional[Path]) -> pd.DataFrame:
 
     out = df[[tid, eml]].copy()
     out.columns = ["teacher_id", "email"]
-    out["teacher_id"] = out["teacher_id"].astype(str).str.strip()
+    out["teacher_id"] = out["teacher_id"].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
     out["email"] = out["email"].astype(str).str.strip().str.lower()
     out = out.dropna().drop_duplicates()
     return out
@@ -199,13 +199,15 @@ def _read_mapping_email_hr(path: Optional[Path]) -> pd.DataFrame:
             f"Dostępne kolumny: {list(df.columns)}"
         )
 
+    id_bazus_col = (cols.get("id_bazus") or cols.get("id bazus") or cols.get("bazus"))
     out = pd.DataFrame()
     out["email"] = df[email].astype(str).str.strip().str.lower()
     out["full_name"] = df[full_name].astype(str).str.strip() if full_name else ""
     out["wydzial"] = df[wydzial].astype(str).str.strip() if wydzial else ""
     out["jednostka"] = df[jednostka].astype(str).str.strip() if jednostka else ""
+    out["id_bazus"] = df[id_bazus_col].astype(str).str.strip().str.replace(r"\.0$", "", regex=True) if id_bazus_col else ""
 
-    out = out.dropna().drop_duplicates(subset=["email"])
+    out = out.dropna(subset=["email"]).drop_duplicates(subset=["email"])
     return out
 
 
@@ -289,7 +291,8 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
                 lower(trim(email)) AS email,
                 nullif(trim(full_name), '') AS full_name,
                 nullif(trim(wydzial), '') AS wydzial,
-                nullif(trim(jednostka), '') AS jednostka
+                nullif(trim(jednostka), '') AS jednostka,
+                nullif(trim(id_bazus), '') AS id_bazus
             FROM map_email_hr_df
             WHERE email IS NOT NULL AND email <> '';
         """)
@@ -351,6 +354,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
                 h.full_name,
                 h.wydzial AS hr_wydzial,
                 h.jednostka AS hr_jednostka,
+                h.id_bazus AS id_bazus,
                 CASE WHEN m.email ILIKE '%@student.umw.edu.pl' THEN 1 ELSE 0 END AS is_student,
                 CASE WHEN m.email IS NULL THEN 1 ELSE 0 END AS qa_missing_email,
                 CASE WHEN m.email IS NOT NULL AND h.email IS NULL THEN 1 ELSE 0 END AS qa_missing_hr
@@ -422,12 +426,12 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
         con.execute("""
             CREATE OR REPLACE TEMP VIEW teacher_ok AS
             SELECT * FROM teacher_enriched
-            WHERE is_student = 0 AND qa_missing_email = 0 AND qa_missing_hr = 0;
+            WHERE is_student = 0 AND qa_missing_email = 0;
         """)
 
         con.execute("""
             CREATE OR REPLACE TEMP VIEW visible_ok AS
-            SELECT * FROM teacher_ok WHERE status_final = 'visible_active';
+            SELECT * FROM teacher_ok WHERE status_final IN ('visible_active', 'unknown');
         """)
 
         con.execute("""
@@ -475,7 +479,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
         con.execute("""
             CREATE TABLE IF NOT EXISTS mart.metrics_long (
                 ay VARCHAR, term VARCHAR, teacher_id VARCHAR,
-                full_name VARCHAR, email VARCHAR, wydzial VARCHAR, jednostka VARCHAR,
+                full_name VARCHAR, email VARCHAR, wydzial VARCHAR, jednostka VARCHAR, id_bazus VARCHAR,
                 course_code VARCHAR, tech_key VARCHAR, activity_label VARCHAR,
                 count_value BIGINT, pct_course DOUBLE, pct_kierunek DOUBLE,
                 pct_wydzial DOUBLE, pct_uczelnia DOUBLE,
@@ -501,6 +505,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
                 coalesce(m.email, '') AS email,
                 coalesce(h.wydzial, '') AS wydzial,
                 coalesce(h.jednostka, '') AS jednostka,
+                coalesce(h.id_bazus, '') AS id_bazus,
                 mc.course_code, mc.tech_key, mc.activity_label,
                 mc.count_value, mc.pct_course, mc.pct_kierunek, mc.pct_wydzial, mc.pct_uczelnia,
                 coalesce(qa.deleted_count, 0) AS deleted_count,
@@ -522,15 +527,12 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
         tech_keys = [r[0] for r in tech_keys_rows]
 
         con.execute("""
-            CREATE TABLE IF NOT EXISTS mart.metrics_wide (
+            CREATE OR REPLACE TABLE mart.metrics_wide (
                 ay VARCHAR, term VARCHAR, teacher_id VARCHAR, course_code VARCHAR
             );
         """)
 
-        if not sc.rebuild_full:
-            con.execute(f"DELETE FROM mart.metrics_wide WHERE ay = '{sc.ay}' AND term = '{sc.term}';")
-        else:
-            con.execute("DELETE FROM mart.metrics_wide;")
+        con.execute("DROP TABLE IF EXISTS mart.metrics_wide;")
 
         if tech_keys:
             def safe_col(s: str) -> str:
@@ -546,17 +548,14 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
                 select_cols.append(f"MAX(CASE WHEN tech_key='{tk}' THEN pct_uczelnia END) AS pct_uczelnia_{c}")
 
             wide_sql = f"""
-                INSERT INTO mart.metrics_wide
+                CREATE TABLE mart.metrics_wide AS
                 SELECT {", ".join(select_cols)}
                 FROM mart.metrics_long
                 {f"WHERE ay = '{sc.ay}' AND term = '{sc.term}'" if not sc.rebuild_full else ""}
                 GROUP BY ay, term, teacher_id, course_code;
             """
 
-            if not sc.rebuild_full:
-                con.execute(wide_sql)
-            else:
-                con.execute(wide_sql)
+            con.execute(wide_sql)
 
         _log_progress(sc.run_dir, {"step": "done"})
         _write_ok(sc.run_dir)
