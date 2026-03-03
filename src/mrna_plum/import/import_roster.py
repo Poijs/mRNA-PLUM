@@ -297,7 +297,7 @@ def build_course_facts_views(con: duckdb.DuckDBPyConnection) -> None:
             course_key,
             COUNT(DISTINCT teacher_id) AS teachers_active
         FROM mart.metrics_long
-        WHERE visible_active = TRUE
+        WHERE confidence_flag = TRUE
           AND count_value > 0
           AND course_key IS NOT NULL
           AND TRIM(course_key) <> ''

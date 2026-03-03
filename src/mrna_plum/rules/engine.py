@@ -65,14 +65,17 @@ def match_best_rule(description: str, rules: list[Rule]) -> Optional[MatchResult
             elif um:
                 teacher_id = um.group(0)
 
-        # object_id z nazwanej grupy regexu dopasowania
+        # object_id z osobnego regexa lub pierwszej grupy
         if rule.regex_object_id:
-            gd = m.groupdict()
-            val = gd.get(rule.regex_object_id)
-            if val:
-                object_id = val
+            try:
+                obj_m = re.search(rule.regex_object_id, description or "")
+                if obj_m and obj_m.groups():
+                    object_id = obj_m.group(1)
+                elif obj_m:
+                    object_id = obj_m.group(0)
+            except Exception:
+                object_id = None
         else:
-            # fallback: pierwsza grupa regexu dopasowania
             try:
                 if m.groups():
                     object_id = m.group(1)

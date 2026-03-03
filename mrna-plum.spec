@@ -14,6 +14,8 @@ a = Analysis(
         'mrna_plum.merge.merge_logs',
         'mrna_plum.store.duckdb_store',
         'rich._unicode_data',
+        'xlsxwriter',
+        'openpyxl',
     ],
     hookspath=[],
     hooksconfig={},

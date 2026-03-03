@@ -266,7 +266,7 @@ def _fetch_teacher_pers(
         SELECT {", ".join(select_parts)}
         FROM mart.metrics_long
         WHERE {_active_filter_sql(con)}
-          AND teacher_id::VARCHAR = ?
+          AND teacher_id::VARCHAR = $1
         GROUP BY teacher_id
     """
     row = con.execute(sql, [teacher_id]).fetchone()

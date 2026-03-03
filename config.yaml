@@ -8,7 +8,7 @@ paths:
   # POPRAWKA A: ujednolicona ścieżka DuckDB — wcześniej compute_stats szukał "_run/warehouse.duckdb"
   db_path: "_data/mrna_plum.duckdb"
   parquet_root: "_data/parquet"
-  logs_root: "logi_plum"
+  logs_root: "../logi_plum"
   merged_logs_out: "_staging/merged"
   output_root: "_out"
   reports_excel: "_out/raport_zbiorczy.xlsx"
@@ -39,8 +39,8 @@ ingest:
 
 # POPRAWKA B: usunięte {root}/ z ścieżek — kod nie interpoluje tego placeholdera
 mapping:
-  teacher_id_email: "pliki_zrodlowe/dane_do_raportu.csv"
-  email_hr: "pliki_zrodlowe/dane_do_raportu.csv"
+  teacher_id_email: "../pliki_zrodlowe/dane_do_raportu.csv"
+  email_hr: "../pliki_zrodlowe/dane_do_raportu.csv"
 
 parse_events:
   keys_xlsx: "KEYS.xlsx"

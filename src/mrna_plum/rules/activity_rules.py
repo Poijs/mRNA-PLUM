@@ -140,16 +140,16 @@ class ActivityRuleEngine:
         rule, m = best[0]
         conflict = len(best) > 1
 
-        # object_id – z grupy nazwanej, jeśli KEYS wskazuje; inaczej spróbuj 1. grupy
+        # object_id - z osobnego regexa lub pierwszej grupy
         object_id: Optional[int] = None
         if rule.rx_object_from_match_group:
-            gd = m.groupdict()
-            val = gd.get(rule.rx_object_from_match_group)
-            if val:
-                try:
-                    object_id = int(val)
-                except Exception:
-                    object_id = None
+            import re as _re
+            try:
+                obj_m = _re.search(rule.rx_object_from_match_group, opis)
+                if obj_m and obj_m.groups():
+                    object_id = int(obj_m.group(1))
+            except Exception:
+                object_id = None
         else:
             try:
                 if m.groups():

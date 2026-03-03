@@ -1,0 +1,154 @@
+{"ts": "2026-03-02T23:15:58.409949+01:00", "step": "merge", "status": "start", "message": "Starting merge (duckdb)", "current": 0, "total": 30, "extra": {"root": "D:\\Praca\\mRNA-PLUM", "mode": "duckdb"}}
+{"ts": "2026-03-02T23:16:03.784497+01:00", "step": "parse_events", "status": "start", "message": "Parsing events into events_canonical", "current": null, "total": null, "extra": {"db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "keys_xlsx": "D:\\Praca\\mRNA-PLUM\\KEYS.xlsx"}}
+{"stage": "parse-events", "status": "ok", "read": 0, "matched": 0, "inserted_raw": 0, "period": null}
+{"ts": "2026-03-02T23:16:04.178481+01:00", "step": "parse_events", "status": "done", "message": "Events parsed", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-02T23:16:08.680820+01:00", "step": "inputs", "status": "error", "message": "Inputs autodetect failed", "current": null, "total": null, "extra": {"error": "inputs_dir not found or not a folder: D:\\Praca\\mRNA-PLUM\\pliki_zrodlowe"}}
+{"ts": "2026-03-02T23:16:13.085311+01:00", "step": "stats", "status": "start", "message": "Computing stats", "current": null, "total": null, "extra": {"ay": null, "term": null}}
+{"step": "start", "duckdb_path": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "ts": "2026-03-02T22:16:13.156232+00:00"}
+{"ts": "2026-03-02T23:16:17.558637+01:00", "step": "inputs", "status": "error", "message": "Inputs autodetect failed", "current": null, "total": null, "extra": {"error": "inputs_dir not found or not a folder: D:\\Praca\\mRNA-PLUM\\pliki_zrodlowe"}}
+{"ts": "2026-03-02T23:16:21.804455+01:00", "step": "inputs", "status": "error", "message": "Inputs autodetect failed", "current": null, "total": null, "extra": {"error": "inputs_dir not found or not a folder: D:\\Praca\\mRNA-PLUM\\pliki_zrodlowe"}}
+{"ts": "2026-03-02T23:26:21.907332+01:00", "step": "merge", "status": "start", "message": "Starting merge (duckdb)", "current": 0, "total": 30, "extra": {"root": "D:\\Praca\\mRNA-PLUM", "mode": "duckdb"}}
+{"ts": "2026-03-02T23:26:26.318071+01:00", "step": "parse_events", "status": "start", "message": "Parsing events into events_canonical", "current": null, "total": null, "extra": {"db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "keys_xlsx": "D:\\Praca\\KEYS.xlsx"}}
+{"stage": "parse-events", "status": "ok", "read": 0, "matched": 0, "inserted_raw": 0, "period": null}
+{"ts": "2026-03-02T23:26:26.664717+01:00", "step": "parse_events", "status": "done", "message": "Events parsed", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-02T23:26:30.965171+01:00", "step": "inputs", "status": "detected", "message": "Inputs autodetected", "current": null, "total": null, "extra": {"inputs_dir": "None", "teachers_csv": null, "roster_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1147_202425l_raport_uczestnikow.csv", "snapshot_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "teachers_map": null, "roster_map": null, "snapshot_map": null}}
+{"ts": "2026-03-02T23:26:30.965635+01:00", "step": "inputs", "status": "warning", "message": "HR file missing (dane_do_raportu.csv) - HR fields will be '-'", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-02T23:26:31.056835+01:00", "step": "activities_state", "status": "start", "message": "Loading snapshots & building activities_state", "current": null, "total": null, "extra": {"snapshot_file": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb"}}
+{"ts": "2026-03-02T23:26:31.225946+01:00", "step": "activities_state", "status": "snapshots_loaded", "message": "Snapshots loaded", "current": null, "total": null, "extra": {"snapshot_file": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "scanned_rows": 70, "inserted_rows": 70, "captured_at": "2025-10-03T11:53:00"}}
+{"ts": "2026-03-02T23:26:31.406311+01:00", "step": "activities_state", "status": "done", "message": "Activities state built", "current": null, "total": null, "extra": {"ok": true}}
+{"ts": "2026-03-02T23:26:35.705030+01:00", "step": "stats", "status": "start", "message": "Computing stats", "current": null, "total": null, "extra": {"ay": null, "term": null}}
+{"step": "start", "duckdb_path": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "ts": "2026-03-02T22:26:35.779307+00:00"}
+{"step": "prepare_events_period", "rebuild_full": false, "ay": "2025/26", "term": "l", "ts": "2026-03-02T22:26:35.868394+00:00"}
+{"step": "join_activities_state", "ts": "2026-03-02T22:26:35.869442+00:00"}
+{"step": "qa_teacher_mapping", "ts": "2026-03-02T22:26:35.870341+00:00"}
+{"step": "incremental_delete_long", "ay": "2025/26", "term": "l", "ts": "2026-03-02T22:26:36.065814+00:00"}
+{"step": "insert_metrics_long", "ts": "2026-03-02T22:26:36.066771+00:00"}
+{"step": "done", "ts": "2026-03-02T22:26:36.139820+00:00"}
+{"ts": "2026-03-02T23:26:36.156922+01:00", "step": "stats", "status": "done", "message": "Stats computed", "current": null, "total": null, "extra": {"ay": null, "term": null}}
+{"ts": "2026-03-02T23:26:40.335723+01:00", "step": "inputs", "status": "detected", "message": "Inputs autodetected", "current": null, "total": null, "extra": {"inputs_dir": "None", "teachers_csv": null, "roster_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1147_202425l_raport_uczestnikow.csv", "snapshot_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "teachers_map": null, "roster_map": null, "snapshot_map": null}}
+{"ts": "2026-03-02T23:26:40.336342+01:00", "step": "inputs", "status": "warning", "message": "HR file missing (dane_do_raportu.csv) - HR fields will be '-'", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-02T23:26:40.336831+01:00", "step": "export_excel", "status": "start", "message": "Exporting Excel report", "current": null, "total": null, "extra": {"db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb"}}
+{"ts": "2026-03-02T23:26:44.466700+01:00", "step": "inputs", "status": "detected", "message": "Inputs autodetected", "current": null, "total": null, "extra": {"inputs_dir": "None", "teachers_csv": null, "roster_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1147_202425l_raport_uczestnikow.csv", "snapshot_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "teachers_map": null, "roster_map": null, "snapshot_map": null}}
+{"ts": "2026-03-02T23:26:44.467245+01:00", "step": "inputs", "status": "warning", "message": "HR file missing (dane_do_raportu.csv) - HR fields will be '-'", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-02T23:26:44.467646+01:00", "step": "export_individual", "status": "start", "message": "Exporting individual reports", "current": null, "total": null, "extra": {"out_dir": "D:\\Praca\\mRNA-PLUM\\_out\\indywidualne"}}
+{"ts": "2026-03-02T23:42:36.135734+01:00", "step": "merge", "status": "start", "message": "Starting merge (duckdb)", "current": 0, "total": 30, "extra": {"root": "D:\\Praca\\mRNA-PLUM", "mode": "duckdb"}}
+{"ts": "2026-03-02T23:43:48.227286+01:00", "step": "merge", "status": "done", "message": "Merge finished (duckdb)", "current": 30, "total": 30, "extra": {"db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "courses": 15, "inserted_rows": 110697}}
+{"ts": "2026-03-02T23:43:52.534722+01:00", "step": "parse_events", "status": "start", "message": "Parsing events into events_canonical", "current": null, "total": null, "extra": {"db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "keys_xlsx": "D:\\Praca\\KEYS.xlsx"}}
+{"stage": "parse-events", "read": 10000, "matched": 17, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 20000, "matched": 26, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 30000, "matched": 45, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 40000, "matched": 93, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 50000, "matched": 140, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "status": "ok", "read": 55841, "matched": 166, "inserted_raw": 166, "period": {"ay": "2024/25", "term": "l"}}
+{"ts": "2026-03-02T23:43:59.056977+01:00", "step": "parse_events", "status": "done", "message": "Events parsed", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-02T23:44:03.299922+01:00", "step": "inputs", "status": "detected", "message": "Inputs autodetected", "current": null, "total": null, "extra": {"inputs_dir": "None", "teachers_csv": null, "roster_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1147_202425l_raport_uczestnikow.csv", "snapshot_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "teachers_map": null, "roster_map": null, "snapshot_map": null}}
+{"ts": "2026-03-02T23:44:03.300423+01:00", "step": "inputs", "status": "warning", "message": "HR file missing (dane_do_raportu.csv) - HR fields will be '-'", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-02T23:44:03.397365+01:00", "step": "activities_state", "status": "start", "message": "Loading snapshots & building activities_state", "current": null, "total": null, "extra": {"snapshot_file": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb"}}
+{"ts": "2026-03-02T23:44:03.550524+01:00", "step": "activities_state", "status": "snapshots_loaded", "message": "Snapshots loaded", "current": null, "total": null, "extra": {"snapshot_file": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "scanned_rows": 70, "inserted_rows": 70, "captured_at": "2025-10-03T11:53:00"}}
+{"ts": "2026-03-02T23:44:03.734974+01:00", "step": "activities_state", "status": "done", "message": "Activities state built", "current": null, "total": null, "extra": {"ok": true}}
+{"ts": "2026-03-02T23:44:07.910286+01:00", "step": "stats", "status": "start", "message": "Computing stats", "current": null, "total": null, "extra": {"ay": null, "term": null}}
+{"step": "start", "duckdb_path": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "ts": "2026-03-02T22:44:07.974995+00:00"}
+{"step": "prepare_events_period", "rebuild_full": false, "ay": "2025/26", "term": "l", "ts": "2026-03-02T22:44:08.064344+00:00"}
+{"step": "join_activities_state", "ts": "2026-03-02T22:44:08.065279+00:00"}
+{"step": "qa_teacher_mapping", "ts": "2026-03-02T22:44:08.066207+00:00"}
+{"step": "incremental_delete_long", "ay": "2025/26", "term": "l", "ts": "2026-03-02T22:44:08.278867+00:00"}
+{"step": "insert_metrics_long", "ts": "2026-03-02T22:44:08.280042+00:00"}
+{"step": "done", "ts": "2026-03-02T22:44:08.362001+00:00"}
+{"ts": "2026-03-02T23:44:08.381174+01:00", "step": "stats", "status": "done", "message": "Stats computed", "current": null, "total": null, "extra": {"ay": null, "term": null}}
+{"ts": "2026-03-02T23:44:12.616889+01:00", "step": "inputs", "status": "detected", "message": "Inputs autodetected", "current": null, "total": null, "extra": {"inputs_dir": "None", "teachers_csv": null, "roster_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1147_202425l_raport_uczestnikow.csv", "snapshot_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "teachers_map": null, "roster_map": null, "snapshot_map": null}}
+{"ts": "2026-03-02T23:44:12.617335+01:00", "step": "inputs", "status": "warning", "message": "HR file missing (dane_do_raportu.csv) - HR fields will be '-'", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-02T23:44:12.617706+01:00", "step": "export_excel", "status": "start", "message": "Exporting Excel report", "current": null, "total": null, "extra": {"db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb"}}
+{"ts": "2026-03-02T23:44:16.907299+01:00", "step": "inputs", "status": "detected", "message": "Inputs autodetected", "current": null, "total": null, "extra": {"inputs_dir": "None", "teachers_csv": null, "roster_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1147_202425l_raport_uczestnikow.csv", "snapshot_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "teachers_map": null, "roster_map": null, "snapshot_map": null}}
+{"ts": "2026-03-02T23:44:16.907734+01:00", "step": "inputs", "status": "warning", "message": "HR file missing (dane_do_raportu.csv) - HR fields will be '-'", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-02T23:44:16.908103+01:00", "step": "export_individual", "status": "start", "message": "Exporting individual reports", "current": null, "total": null, "extra": {"out_dir": "D:\\Praca\\mRNA-PLUM\\_out\\indywidualne"}}
+{"ts": "2026-03-02T23:48:43.365718+01:00", "step": "merge", "status": "start", "message": "Starting merge (duckdb)", "current": 0, "total": 30, "extra": {"root": "D:\\Praca\\mRNA-PLUM", "mode": "duckdb"}}
+{"ts": "2026-03-02T23:50:03.825087+01:00", "step": "merge", "status": "done", "message": "Merge finished (duckdb)", "current": 30, "total": 30, "extra": {"db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "courses": 15, "inserted_rows": 110697}}
+{"ts": "2026-03-02T23:50:08.894991+01:00", "step": "parse_events", "status": "start", "message": "Parsing events into events_canonical", "current": null, "total": null, "extra": {"db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "keys_xlsx": "D:\\Praca\\KEYS.xlsx"}}
+{"stage": "parse-events", "read": 10000, "matched": 18, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 20000, "matched": 25, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 30000, "matched": 44, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 40000, "matched": 93, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 50000, "matched": 140, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "status": "ok", "read": 55841, "matched": 166, "inserted_raw": 166, "period": {"ay": "2024/25", "term": "l"}}
+{"ts": "2026-03-02T23:50:15.858440+01:00", "step": "parse_events", "status": "done", "message": "Events parsed", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-02T23:50:20.635940+01:00", "step": "inputs", "status": "detected", "message": "Inputs autodetected", "current": null, "total": null, "extra": {"inputs_dir": "None", "teachers_csv": null, "roster_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1147_202425l_raport_uczestnikow.csv", "snapshot_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "teachers_map": null, "roster_map": null, "snapshot_map": null}}
+{"ts": "2026-03-02T23:50:20.636400+01:00", "step": "inputs", "status": "warning", "message": "HR file missing (dane_do_raportu.csv) - HR fields will be '-'", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-02T23:50:20.743284+01:00", "step": "activities_state", "status": "start", "message": "Loading snapshots & building activities_state", "current": null, "total": null, "extra": {"snapshot_file": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb"}}
+{"ts": "2026-03-02T23:50:20.921446+01:00", "step": "activities_state", "status": "snapshots_loaded", "message": "Snapshots loaded", "current": null, "total": null, "extra": {"snapshot_file": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "scanned_rows": 70, "inserted_rows": 70, "captured_at": "2025-10-03T11:53:00"}}
+{"ts": "2026-03-02T23:50:21.135434+01:00", "step": "activities_state", "status": "done", "message": "Activities state built", "current": null, "total": null, "extra": {"ok": true}}
+{"ts": "2026-03-02T23:50:25.869932+01:00", "step": "stats", "status": "start", "message": "Computing stats", "current": null, "total": null, "extra": {"ay": null, "term": null}}
+{"step": "start", "duckdb_path": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "ts": "2026-03-02T22:50:25.941200+00:00"}
+{"step": "prepare_events_period", "rebuild_full": false, "ay": "2025/26", "term": "l", "ts": "2026-03-02T22:50:26.042087+00:00"}
+{"step": "join_activities_state", "ts": "2026-03-02T22:50:26.043144+00:00"}
+{"step": "qa_teacher_mapping", "ts": "2026-03-02T22:50:26.044257+00:00"}
+{"step": "incremental_delete_long", "ay": "2025/26", "term": "l", "ts": "2026-03-02T22:50:26.273569+00:00"}
+{"step": "insert_metrics_long", "ts": "2026-03-02T22:50:26.274474+00:00"}
+{"step": "done", "ts": "2026-03-02T22:50:26.355638+00:00"}
+{"ts": "2026-03-02T23:50:26.383393+01:00", "step": "stats", "status": "done", "message": "Stats computed", "current": null, "total": null, "extra": {"ay": null, "term": null}}
+{"ts": "2026-03-02T23:50:31.037982+01:00", "step": "inputs", "status": "detected", "message": "Inputs autodetected", "current": null, "total": null, "extra": {"inputs_dir": "None", "teachers_csv": null, "roster_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1147_202425l_raport_uczestnikow.csv", "snapshot_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "teachers_map": null, "roster_map": null, "snapshot_map": null}}
+{"ts": "2026-03-02T23:50:31.038448+01:00", "step": "inputs", "status": "warning", "message": "HR file missing (dane_do_raportu.csv) - HR fields will be '-'", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-02T23:50:31.038812+01:00", "step": "export_excel", "status": "start", "message": "Exporting Excel report", "current": null, "total": null, "extra": {"db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb"}}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-02T22:50:31.154742+00:00"}
+{"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-02T22:50:31.208762+00:00"}
+{"step": "export-excel", "status": "writing_qa", "ts": "2026-03-02T22:50:31.213447+00:00"}
+{"step": "export-excel", "status": "writing_info", "ts": "2026-03-02T22:50:31.228956+00:00"}
+{"step": "export-excel", "status": "done", "output": "D:\\Praca\\mRNA-PLUM\\_out\\Raport_Zbiorczy_NA__.xlsx", "main_rows": 0, "qa_rows": 0, "main_sheets": 1, "ts": "2026-03-02T22:50:31.266744+00:00"}
+{"ts": "2026-03-02T23:50:31.272389+01:00", "step": "export_excel", "status": "done", "message": "Excel exported", "current": null, "total": null, "extra": {"out": "D:\\Praca\\mRNA-PLUM\\_out\\Raport_Zbiorczy_NA__.xlsx"}}
+{"ts": "2026-03-02T23:50:35.722453+01:00", "step": "inputs", "status": "detected", "message": "Inputs autodetected", "current": null, "total": null, "extra": {"inputs_dir": "None", "teachers_csv": null, "roster_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1147_202425l_raport_uczestnikow.csv", "snapshot_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "teachers_map": null, "roster_map": null, "snapshot_map": null}}
+{"ts": "2026-03-02T23:50:35.722948+01:00", "step": "inputs", "status": "warning", "message": "HR file missing (dane_do_raportu.csv) - HR fields will be '-'", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-02T23:50:35.723314+01:00", "step": "export_individual", "status": "start", "message": "Exporting individual reports", "current": null, "total": null, "extra": {"out_dir": "D:\\Praca\\mRNA-PLUM\\_out\\indywidualne"}}
+{"stage": "parse-events", "read": 10000, "matched": 18, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 20000, "matched": 25, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 30000, "matched": 44, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 40000, "matched": 93, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 50000, "matched": 140, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "status": "ok", "read": 55841, "matched": 166, "inserted_raw": 166, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 10000, "matched": 18, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 20000, "matched": 25, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 30000, "matched": 44, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 40000, "matched": 93, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 50000, "matched": 140, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "status": "ok", "read": 55841, "matched": 166, "inserted_raw": 166, "period": {"ay": "2024/25", "term": "l"}}
+{"ts": "2026-03-03T01:07:59.487019+01:00", "step": "merge", "status": "start", "message": "Starting merge (duckdb)", "current": 0, "total": 30, "extra": {"root": "D:\\Praca\\mRNA-PLUM", "mode": "duckdb"}}
+{"ts": "2026-03-03T01:09:18.542285+01:00", "step": "merge", "status": "done", "message": "Merge finished (duckdb)", "current": 30, "total": 30, "extra": {"db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "courses": 15, "inserted_rows": 110697}}
+{"ts": "2026-03-03T01:09:23.162985+01:00", "step": "parse_events", "status": "start", "message": "Parsing events into events_canonical", "current": null, "total": null, "extra": {"db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "keys_xlsx": "D:\\Praca\\KEYS.xlsx"}}
+{"stage": "parse-events", "read": 10000, "matched": 17, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 20000, "matched": 25, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 30000, "matched": 46, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 40000, "matched": 93, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "read": 50000, "matched": 140, "inserted_raw": 0, "period": {"ay": "2024/25", "term": "l"}}
+{"stage": "parse-events", "status": "ok", "read": 55841, "matched": 166, "inserted_raw": 166, "period": {"ay": "2024/25", "term": "l"}}
+{"ts": "2026-03-03T01:09:29.819500+01:00", "step": "parse_events", "status": "done", "message": "Events parsed", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-03T01:09:34.819417+01:00", "step": "inputs", "status": "detected", "message": "Inputs autodetected", "current": null, "total": null, "extra": {"inputs_dir": "None", "teachers_csv": null, "roster_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1147_202425l_raport_uczestnikow.csv", "snapshot_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "teachers_map": null, "roster_map": null, "snapshot_map": null}}
+{"ts": "2026-03-03T01:09:34.819869+01:00", "step": "inputs", "status": "warning", "message": "HR file missing (dane_do_raportu.csv) - HR fields will be '-'", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-03T01:09:34.937166+01:00", "step": "activities_state", "status": "start", "message": "Loading snapshots & building activities_state", "current": null, "total": null, "extra": {"snapshot_file": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb"}}
+{"ts": "2026-03-03T01:09:35.141731+01:00", "step": "activities_state", "status": "snapshots_loaded", "message": "Snapshots loaded", "current": null, "total": null, "extra": {"snapshot_file": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "scanned_rows": 70, "inserted_rows": 70, "captured_at": "2025-10-03T11:53:00"}}
+{"ts": "2026-03-03T01:09:35.402303+01:00", "step": "activities_state", "status": "done", "message": "Activities state built", "current": null, "total": null, "extra": {"ok": true}}
+{"ts": "2026-03-03T01:09:39.640526+01:00", "step": "stats", "status": "start", "message": "Computing stats", "current": null, "total": null, "extra": {"ay": null, "term": null}}
+{"step": "start", "duckdb_path": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "ts": "2026-03-03T00:09:39.715025+00:00"}
+{"step": "prepare_events_period", "rebuild_full": false, "ay": "2025/26", "term": "l", "ts": "2026-03-03T00:09:39.807669+00:00"}
+{"step": "join_activities_state", "ts": "2026-03-03T00:09:39.808518+00:00"}
+{"step": "qa_teacher_mapping", "ts": "2026-03-03T00:09:39.809855+00:00"}
+{"step": "incremental_delete_long", "ay": "2025/26", "term": "l", "ts": "2026-03-03T00:09:40.030867+00:00"}
+{"step": "insert_metrics_long", "ts": "2026-03-03T00:09:40.031949+00:00"}
+{"step": "done", "ts": "2026-03-03T00:09:40.122442+00:00"}
+{"ts": "2026-03-03T01:09:40.141238+01:00", "step": "stats", "status": "done", "message": "Stats computed", "current": null, "total": null, "extra": {"ay": null, "term": null}}
+{"ts": "2026-03-03T01:09:44.607681+01:00", "step": "inputs", "status": "detected", "message": "Inputs autodetected", "current": null, "total": null, "extra": {"inputs_dir": "None", "teachers_csv": null, "roster_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1147_202425l_raport_uczestnikow.csv", "snapshot_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "teachers_map": null, "roster_map": null, "snapshot_map": null}}
+{"ts": "2026-03-03T01:09:44.608084+01:00", "step": "inputs", "status": "warning", "message": "HR file missing (dane_do_raportu.csv) - HR fields will be '-'", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-03T01:09:44.608467+01:00", "step": "export_excel", "status": "start", "message": "Exporting Excel report", "current": null, "total": null, "extra": {"db": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb"}}
+{"step": "export-excel", "status": "start", "ay": "", "term": "", "ts": "2026-03-03T00:09:44.718429+00:00"}
+{"step": "export-excel", "status": "writing_main", "rows": 0, "ts": "2026-03-03T00:09:44.765820+00:00"}
+{"step": "export-excel", "status": "writing_qa", "ts": "2026-03-03T00:09:44.769520+00:00"}
+{"step": "export-excel", "status": "writing_info", "ts": "2026-03-03T00:09:44.783467+00:00"}
+{"step": "export-excel", "status": "done", "output": "D:\\Praca\\mRNA-PLUM\\_out\\Raport_Zbiorczy_NA__.xlsx", "main_rows": 0, "qa_rows": 0, "main_sheets": 1, "ts": "2026-03-03T00:09:44.814405+00:00"}
+{"ts": "2026-03-03T01:09:44.819010+01:00", "step": "export_excel", "status": "done", "message": "Excel exported", "current": null, "total": null, "extra": {"out": "D:\\Praca\\mRNA-PLUM\\_out\\Raport_Zbiorczy_NA__.xlsx"}}
+{"ts": "2026-03-03T01:09:49.119246+01:00", "step": "inputs", "status": "detected", "message": "Inputs autodetected", "current": null, "total": null, "extra": {"inputs_dir": "None", "teachers_csv": null, "roster_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1147_202425l_raport_uczestnikow.csv", "snapshot_csv": "D:\\Praca\\pliki_zrodlowe\\20251003-1153_202425l_zawartosc_kursow.csv", "teachers_map": null, "roster_map": null, "snapshot_map": null}}
+{"ts": "2026-03-03T01:09:49.119670+01:00", "step": "inputs", "status": "warning", "message": "HR file missing (dane_do_raportu.csv) - HR fields will be '-'", "current": null, "total": null, "extra": {}}
+{"ts": "2026-03-03T01:09:49.120016+01:00", "step": "export_individual", "status": "start", "message": "Exporting individual reports", "current": null, "total": null, "extra": {"out_dir": "D:\\Praca\\mRNA-PLUM\\_out\\indywidualne"}}
+{"step": "start", "duckdb_path": "D:\\Praca\\mRNA-PLUM\\_data\\mrna_plum.duckdb", "ts": "2026-03-03T00:14:11.043151+00:00"}
+{"step": "prepare_events_period", "rebuild_full": false, "ay": "2025/26", "term": "l", "ts": "2026-03-03T00:14:11.150749+00:00"}
+{"step": "join_activities_state", "ts": "2026-03-03T00:14:11.151849+00:00"}
+{"step": "qa_teacher_mapping", "ts": "2026-03-03T00:14:11.152900+00:00"}
+{"step": "incremental_delete_long", "ay": "2025/26", "term": "l", "ts": "2026-03-03T00:14:11.397455+00:00"}
+{"step": "insert_metrics_long", "ts": "2026-03-03T00:14:11.398422+00:00"}
+{"step": "done", "ts": "2026-03-03T00:14:11.501863+00:00"}

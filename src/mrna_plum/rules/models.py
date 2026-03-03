@@ -11,5 +11,5 @@ class Rule:
     count_to_report: bool
     regex_match_desc: re.Pattern
     regex_user_id: Optional[re.Pattern]
-    regex_object_id: Optional[re.Pattern]
+    regex_object_id: Optional[str]
     priority: int

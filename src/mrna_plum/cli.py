@@ -265,8 +265,13 @@ def cmd_merge_logs(
     db_path = paths.duckdb_path
     con = open_store(db_path)
     try:
+        logs_root_rel = getattr(getattr(cfg, "paths", None), "logs_root", None) or (cfg.get("paths", {}) or {}).get("logs_root") if hasattr(cfg, "get") else None
+        if logs_root_rel:
+            logs_root_path = (root_p / logs_root_rel).resolve()
+        else:
+            logs_root_path = root_p
         res = merge_logs_into_duckdb(
-            root=root_p,
+            root=logs_root_path,
             con=con,
             export_mode="duckdb",
             export_dir=None,
