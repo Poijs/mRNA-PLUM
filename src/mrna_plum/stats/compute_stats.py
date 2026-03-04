@@ -431,7 +431,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
 
         con.execute("""
             CREATE OR REPLACE TEMP VIEW visible_ok AS
-            SELECT * FROM teacher_ok WHERE status_final IN ('visible_active', 'unknown');
+            SELECT * FROM teacher_ok WHERE status_final IN ('visible_active', 'unknown') OR status_final IS NULL;
         """)
 
         con.execute("""
