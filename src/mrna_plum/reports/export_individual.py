@@ -380,9 +380,9 @@ def _write_teacher_xlsx(
 
         # Ensure at least Wydział/Jednostka rows exist even if hr cols absent
         if not any(_hr_human_label(c) == "Wydział" for c in hr_cols):
-            kv.append(("Wydział", ""))
+            kv.append(("Wydzia?", pers.get("wydzial", "") or ""))
         if not any(_hr_human_label(c) == "Jednostka" for c in hr_cols):
-            kv.append(("Jednostka", ""))
+            kv.append(("Jednostka", pers.get("jednostka", "") or ""))
 
         for i, (k, v) in enumerate(kv, start=1):
             ws2.write(i, 0, k)
@@ -437,7 +437,8 @@ def export_individual_reports(
 
     # For parallel: DuckDB connection is not safely shared across threads.
     # We'll open a separate connection per worker using cfg.paths.db_path.
-    db_path = _cfg_get(cfg, "paths.db_path", None)
+    _db_path_rel = _cfg_get(cfg, "paths.db_path", None)
+    db_path = str((root / _db_path_rel).resolve()) if _db_path_rel else None
 
     def _worker(teacher_id: str, full_name: str, email: str, id_bazus: str) -> Tuple[str, str, str, Optional[str], int]:
         """
@@ -452,7 +453,7 @@ def export_individual_reports(
             if not email or not str(email).strip():
                 return (str(teacher_id), "SKIPPED_NO_EMAIL", "Missing email", None, 0)
             if not id_bazus or not str(id_bazus).strip():
-                return (str(teacher_id), "SKIPPED_NO_BAZUS", "Missing BAZUS ID for filename", None, 0)
+                id_bazus = "BRAK_BAZUS"
 
             if max_workers and max_workers > 1:
                 if not db_path:

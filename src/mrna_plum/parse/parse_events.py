@@ -73,6 +73,39 @@ def parse_course_context(kontekst: str) -> Optional[Dict[str, str]]:
     }
 
 
+def parse_course_from_filename(course: str, course_map: Optional[Dict[str, str]] = None) -> Optional[Dict[str, str]]:
+    """
+    Lookup course_code z mapy course->course_code zbudowanej z events_canonical_raw.
+    """
+    if not course or not course_map:
+        return None
+    course_code = course_map.get(course)
+    if not course_code:
+        return None
+    parts = course_code.split("/")
+    wydzial = parts[0] if len(parts) > 0 else ""
+    kierunek = parts[1] if len(parts) > 1 else ""
+    track = parts[2] if len(parts) > 2 else ""
+    rest = parts[3] if len(parts) > 3 else ""
+    sem_match = rest.split("-")[0] if rest else ""
+    name_part = rest[len(sem_match)+1:] if sem_match and rest.startswith(sem_match) else rest
+    # ay i term z course_code
+    import re as _re
+    m = _re.search(r"(\d{4}/\d{2})([zl])$", course_code)
+    ay = m.group(1) if m else ""
+    term = m.group(2) if m else ""
+    name_clean = _re.sub(r"-\d{4}/\d{2}[zl]$", "", name_part).strip()
+    return {
+        "course_code": course_code,
+        "wydzial_code": wydzial,
+        "kierunek_code": kierunek,
+        "track_code": track,
+        "semester_code": sem_match,
+        "course_name": name_clean,
+        "ay": ay,
+        "term": term.lower(),
+    }
+
 def ensure_run_paths(root: Path) -> Dict[str, Path]:
     run_dir = root / "_run"
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -203,6 +236,11 @@ def run_parse_events(
         con = duckdb.connect(str((Path(root_p) / cfg["paths"]["db_path"]).resolve()))
         con.execute("PRAGMA enable_progress_bar=false;")
 
+        # Buduj mape course->course_code z juz przetworzonych
+        _course_map_rows = con.execute("SELECT DISTINCT course, course_code FROM events_canonical_raw WHERE course_code IS NOT NULL").fetchall()
+        course_map: Dict[str, str] = {r[0]: r[1] for r in _course_map_rows}
+        logger.log(f"[PARSE] course_map entries: {len(course_map)}")
+
         # incremental: bierz tylko te, których row_key nie ma w canonical_raw
         query = """
             SELECT course, time_text, time_ts, row_key, payload_json, source_file
@@ -265,6 +303,8 @@ def run_parse_events(
                 # kontekst kursu
                 kontekst = str(payload.get("Kontekst zdarzenia") or payload.get("Event context") or "")
                 ctx = parse_course_context(kontekst)
+                if not ctx:
+                    ctx = parse_course_from_filename(course, course_map)
                 if not ctx:
                     continue
 
