@@ -40,7 +40,7 @@ def find_inputs(inputs_dir: Path) -> DetectedInputs:
         n = p.name.lower()
         return any(k in n for k in keys)
 
-    teachers = [p for p in csvs if has_any(p, ("nauczyciel", "teachers", "hr"))]
+    teachers = [p for p in csvs if has_any(p, ("nauczyciel", "teachers", "hr", "dane_do_raportu"))]
     roster = [p for p in csvs if has_any(p, ("uczestnik", "roster", "enrol", "enroll", "zapisani"))]
     snapshot = [p for p in csvs if has_any(p, ("zawartosc_kurs", "snapshot"))]
 

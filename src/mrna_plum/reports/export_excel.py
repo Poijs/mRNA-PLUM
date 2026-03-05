@@ -101,15 +101,15 @@ def _select_metrics_long_sql(con, activity_col: str, course_col: str,
         course_col = "course_code"
 
     pct_course = "pct_course" if _duckdb_has_column(con, table, "pct_course") else "NULL"
-    pct_program = "pct_program" if _duckdb_has_column(con, table, "pct_program") else "NULL"
-    pct_faculty = "pct_faculty" if _duckdb_has_column(con, table, "pct_faculty") else "NULL"
-    pct_university = "pct_university" if _duckdb_has_column(con, table, "pct_university") else "NULL"
+    pct_program = "pct_kierunek" if _duckdb_has_column(con, table, "pct_kierunek") else "NULL"
+    pct_faculty = "pct_wydzial" if _duckdb_has_column(con, table, "pct_wydzial") else "NULL"
+    pct_university = "pct_uczelnia" if _duckdb_has_column(con, table, "pct_uczelnia") else "NULL"
 
     # Excel %: zapisujemy ułamek (12.3 -> 0.123)
     def pct_expr(expr: str) -> str:
         if expr == "NULL":
             return "NULL"
-        return f"({expr} / 100.0)" if percent_excel_format else expr
+        return expr
 
     pct_course_e = pct_expr(pct_course)
     pct_program_e = pct_expr(pct_program)

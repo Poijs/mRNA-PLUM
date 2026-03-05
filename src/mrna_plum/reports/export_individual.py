@@ -222,10 +222,10 @@ def _fetch_teacher_rows(
             course_code AS course_name,
             activity_label,
             count_value,
-            (pct_course / 100.0)   AS pct_course_xlsx,
-            (pct_kierunek / 100.0) AS pct_kierunek_xlsx,
-            (pct_wydzial / 100.0)  AS pct_wydzial_xlsx,
-            (pct_uczelnia / 100.0) AS pct_uczelnia_xlsx
+            pct_course   AS pct_course_xlsx,
+            pct_kierunek AS pct_kierunek_xlsx,
+            pct_wydzial  AS pct_wydzial_xlsx,
+            pct_uczelnia AS pct_uczelnia_xlsx
         FROM mart.metrics_long
         WHERE {_active_filter_sql(con)}
           AND teacher_id::VARCHAR = '{teacher_id}'
@@ -260,8 +260,9 @@ def _fetch_teacher_pers(
         "MAX(COALESCE(NULLIF(TRIM(full_name), ''), '')) AS full_name",
         "MAX(COALESCE(NULLIF(TRIM(email), ''), '')) AS email",
         _id_bazus_part,
+        "MAX(COALESCE(NULLIF(TRIM(wydzial), ''), '')) AS wydzial",
+        "MAX(COALESCE(NULLIF(TRIM(jednostka), ''), '')) AS jednostka",
     ]
-
     for c in hr_cols:
         select_parts.append(f"MAX(COALESCE(NULLIF(TRIM({c}), ''), '')) AS {c}")
 
@@ -279,7 +280,7 @@ def _fetch_teacher_pers(
             base[c] = ""
         return base
 
-    keys = ["teacher_id", "full_name", "email", "id_bazus"] + hr_cols
+    keys = ["teacher_id", "full_name", "email", "id_bazus", "wydzial", "jednostka"] + [c for c in hr_cols if c not in ("wydzial", "jednostka")]
     return dict(zip(keys, row))
 
 
@@ -380,7 +381,7 @@ def _write_teacher_xlsx(
 
         # Ensure at least Wydział/Jednostka rows exist even if hr cols absent
         if not any(_hr_human_label(c) == "Wydział" for c in hr_cols):
-            kv.append(("Wydzia?", pers.get("wydzial", "") or ""))
+            kv.append(("Wydział", pers.get("wydzial", "") or ""))
         if not any(_hr_human_label(c) == "Jednostka" for c in hr_cols):
             kv.append(("Jednostka", pers.get("jednostka", "") or ""))
 

@@ -239,6 +239,18 @@ def run_parse_events(
         # Buduj mape course->course_code z juz przetworzonych
         _course_map_rows = con.execute("SELECT DISTINCT course, course_code FROM events_canonical_raw WHERE course_code IS NOT NULL").fetchall()
         course_map: Dict[str, str] = {r[0]: r[1] for r in _course_map_rows}
+        # Jesli mapa pusta (swiez? baza) - zbuduj z events_raw przez kontekst
+        if not course_map:
+            _raw_ctx = con.execute("SELECT DISTINCT course, payload_json FROM events_raw LIMIT 5000").fetchall()
+            import json as _json
+            for _c, _pj in _raw_ctx:
+                if _c in course_map:
+                    continue
+                _d = _json.loads(_pj)
+                _k = str(_d.get("Kontekst zdarzenia") or "")
+                _ctx = parse_course_context(_k)
+                if _ctx:
+                    course_map[_c] = _ctx["course_code"]
         logger.log(f"[PARSE] course_map entries: {len(course_map)}")
 
         # incremental: bierz tylko te, których row_key nie ma w canonical_raw
