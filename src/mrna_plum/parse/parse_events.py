@@ -84,7 +84,7 @@ def parse_course_from_filename(course: str, course_map: Optional[Dict[str, str]]
         # Fallback: parsuj bezposrednio z nazwy pliku
         # Obsluguje: WFAnstj5sem-Nazwa-202526z i WLLe-EDstj1sem-Nazwa-202526z
         m = re.match(
-            r'^([A-Z]{2,4}[A-Za-z0-9\-]{1,8}?)((?:ns|st|nst|n|s)\w*?)(\d+sem)-(.+?)-(\d{6})(l|z)$',
+            r'^([A-Z]{2,4}[A-Za-z0-9\-]{1,8}?)(st[12j]|ns[12j]|stj|nsj|nst|st|ns)(\d+sem)-(.+?)-(\d{6})(l|z)$',
             course
         )
         if not m:

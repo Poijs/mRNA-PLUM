@@ -76,6 +76,9 @@ def load_keys_rules(keys_xlsx: str, sheet_name: str = "KEYS") -> List[KeyRule]:
         tech_key = _norm(r[col("KLUCZ_TECHNICZNY")])
         operation = _norm(r[col("OPERACJA")]).upper()
         count_mode = _norm(r[col("LICZYC_DO_RAPORTU")]).upper()  # TAK/TAK_FLAG/NIE
+        tryb = _norm(r[idx.get("TRYB_LICZENIA", -1)]) if "TRYB_LICZENIA" in idx else ""
+        if tryb == "object-based":
+            count_mode = "object-based"
         rx_match_txt = _norm(r[col("REGEX_DOPASOWANIA_(Opis)")])
         rx_user_txt = _norm(r[col("REGEX_USER_ID_(Opis)")])
         rx_obj_group = _norm(r[idx.get("REGEX_OBIEKT_ID_(z dopasowania)", -1)]) if "REGEX_OBIEKT_ID_(z dopasowania)" in idx else ""

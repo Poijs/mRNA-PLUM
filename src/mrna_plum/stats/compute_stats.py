@@ -321,7 +321,7 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
                 object_id,
                 count_mode
             FROM events_canonical
-            WHERE counted = true
+            WHERE (counted = true OR count_mode = 'object-based')
             {period_where};
         """)
 
@@ -431,7 +431,51 @@ def compute_stats(root: Path, ay: Optional[str] = None, term: Optional[str] = No
 
         con.execute("""
             CREATE OR REPLACE TEMP VIEW visible_ok AS
-            SELECT * FROM teacher_ok WHERE status_final IN ('visible_active', 'unknown') OR status_final IS NULL;
+            SELECT t.* FROM teacher_ok t
+            WHERE
+                -- Aktywnosci wewnetrzne - nie wymagaja weryfikacji snapshota
+                t.tech_key IN (
+                    'ASSIGNMENT_GRADED','DB_RECORD_CREATE','DB_FIELD_CREATE',
+                    'GLOSSARY_ENTRY_CREATE','WIKI_PAGE_CREATE','QUESTION_CREATE',
+                    'FEEDBACK_CREATE','CHOICE_CREATE','CHAT_MESSAGE',
+                    'FORUM_POST_CREATE','FORUM_POST_DELETE',
+                    'FORUM_DISCUSSION_CREATE','FORUM_DISCUSSION_DELETE','H5P_CREATE'
+                )
+                OR
+                -- Moduly kursu - wymagaja widocznosci w snapshot
+                (
+                    t.tech_key IN (
+                        'FILE_RESOURCE_CREATE','FILE_RESOURCE_DELETE',
+                        'URL_CREATE','URL_DELETE',
+                        'LABEL_CREATE','LABEL_DELETE',
+                        'RESOURCE_PAGE_CREATE','RESOURCE_PAGE_DELETE',
+                        'TEAMS_MEETING_CREATE','TEAMS_MEETING_DELETE',
+                        'FOLDER_UPDATED'
+                    )
+                    AND t.status_final IN ('visible_active', 'unknown')
+                )
+                OR
+                -- Rozdzialy ksiazki - tylko gdy ksiazka widoczna w snapshot (po kursie)
+                (
+                    t.tech_key IN ('BOOK_CHAPTER_CREATE','BOOK_CHAPTER_DELETE')
+                    AND EXISTS (
+                        SELECT 1 FROM mart.activities_state s
+                        WHERE s.course_code = t.course_code
+                          AND s.type = 'book'
+                          AND s.status_final = 'visible_active'
+                    )
+                )
+                OR
+                -- Strony lekcji - tylko gdy lekcja widoczna w snapshot (po kursie)
+                (
+                    t.tech_key IN ('LESSON_PAGE_CREATE','LESSON_PAGE_DELETE')
+                    AND EXISTS (
+                        SELECT 1 FROM mart.activities_state s
+                        WHERE s.course_code = t.course_code
+                          AND s.type = 'lesson'
+                          AND s.status_final = 'visible_active'
+                    )
+                );
         """)
 
         con.execute("""
