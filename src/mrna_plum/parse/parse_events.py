@@ -77,11 +77,27 @@ def parse_course_from_filename(course: str, course_map: Optional[Dict[str, str]]
     """
     Lookup course_code z mapy course->course_code zbudowanej z events_canonical_raw.
     """
-    if not course or not course_map:
+    if not course:
         return None
-    course_code = course_map.get(course)
+    course_code = (course_map or {}).get(course)
     if not course_code:
-        return None
+        # Fallback: parsuj bezposrednio z nazwy pliku
+        # Obsluguje: WFAnstj5sem-Nazwa-202526z i WLLe-EDstj1sem-Nazwa-202526z
+        m = re.match(
+            r'^([A-Z]{2,4}[A-Za-z0-9\-]{1,8}?)((?:ns|st|nst|n|s)\w*?)(\d+sem)-(.+?)-(\d{6})(l|z)$',
+            course
+        )
+        if not m:
+            return None
+        prefix, track, sem, name, ayraw, term = m.groups()
+        # Rozdziel prefix na wydzial i kierunek (ostatnie 2 litery to kierunek)
+        # WFAn -> WF/An, WLLe-ED -> WL/Le-ED
+        pm = re.match(r'^([A-Z]{2,3})([A-Za-z]{2}(?:-[A-Z]{2})?)$', prefix)
+        if not pm:
+            return None
+        wydzial, kierunek = pm.group(1), pm.group(2)
+        ay = f"{ayraw[:4]}/{ayraw[4:]}"
+        course_code = f"{wydzial}/{kierunek}/{track}/{sem}-{name}-{ay}{term}"
     parts = course_code.split("/")
     wydzial = parts[0] if len(parts) > 0 else ""
     kierunek = parts[1] if len(parts) > 1 else ""
@@ -241,7 +257,7 @@ def run_parse_events(
         course_map: Dict[str, str] = {r[0]: r[1] for r in _course_map_rows}
         # Jesli mapa pusta (swiez? baza) - zbuduj z events_raw przez kontekst
         if not course_map:
-            _raw_ctx = con.execute("SELECT DISTINCT course, payload_json FROM events_raw LIMIT 5000").fetchall()
+            _raw_ctx = con.execute("SELECT DISTINCT course, payload_json FROM events_raw WHERE JSON_EXTRACT_STRING(payload_json, '$.Kontekst zdarzenia') LIKE 'Kurs:%' LIMIT 5000").fetchall()
             import json as _json
             for _c, _pj in _raw_ctx:
                 if _c in course_map:

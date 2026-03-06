@@ -384,7 +384,7 @@ def cmd_parse_events(
     from .parse.parse_events import run_parse_events
 
     exit_code = run_parse_events(cfg, root=str(root_p), keys_xlsx_override=keys_xlsx)
-    if exit_code != 0:
+    if exit_code < 0:
         raise ProcessingError(f"parse-events failed with exit code {exit_code}")
 
     progress.emit("parse_events", "done", "Events parsed")
