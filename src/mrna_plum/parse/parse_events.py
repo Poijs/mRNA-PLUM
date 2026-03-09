@@ -73,6 +73,24 @@ def parse_course_context(kontekst: str) -> Optional[Dict[str, str]]:
     }
 
 
+_TYPE_MAP = {
+    'WY': 'Wykład', 'SE': 'Seminarium', 'CA': 'Ćwiczenia audytoryjne',
+    'CN': 'Ćwiczenia kierunkowe', 'CS': 'Ćwiczenia w warunkach symulowanych',
+    'CL': 'Ćwiczenia laboratoryjne', 'CK': 'Ćwiczenia kliniczne',
+    'PP': 'Zajęcia praktyczne przy pacjencie', 'CM': 'Ćwiczenia specjalistyczne',
+    'LE': 'Lektorat', 'EL': 'E-learning', 'WF': 'Wychowanie fizyczne',
+    'PZ': 'Praktyka zawodowa', 'SK': 'Samokształcenie kierowane',
+}
+
+def _expand_type_suffix(name: str) -> str:
+    """Zamien sufiks typu zajec np. -WY- na -Wykład-"""
+    for short, full in _TYPE_MAP.items():
+        if f'-{short}-' in name:
+            return name.replace(f'-{short}-', f'-{full}-')
+        if name.endswith(f'-{short}'):
+            return name[:-len(short)] + full
+    return name
+
 def parse_course_from_filename(course: str, course_map: Optional[Dict[str, str]] = None) -> Optional[Dict[str, str]]:
     """
     Lookup course_code z mapy course->course_code zbudowanej z events_canonical_raw.
@@ -97,6 +115,7 @@ def parse_course_from_filename(course: str, course_map: Optional[Dict[str, str]]
             return None
         wydzial, kierunek = pm.group(1), pm.group(2)
         ay = f"{ayraw[:4]}/{ayraw[4:]}"
+        name = _expand_type_suffix(name)
         course_code = f"{wydzial}/{kierunek}/{track}/{sem}-{name}-{ay}{term}"
     parts = course_code.split("/")
     wydzial = parts[0] if len(parts) > 0 else ""

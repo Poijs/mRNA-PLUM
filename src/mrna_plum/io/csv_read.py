@@ -46,11 +46,10 @@ def detect_encoding(path: Path) -> str:
     # najczęstsze w PL logach
     try:
         sample.decode("cp1250", errors="strict")
-        return "cp1250"
+        high_bytes = sum(1 for b in sample if b > 0x7F)
+        return "cp1250" if high_bytes > 0 else "utf-8"
     except UnicodeDecodeError:
         return "iso-8859-2"
-
-
 def detect_delimiter(sample_text: str) -> str:
     """
     Wymagania: wykrywaj delimiter (TAB / ; / ,)
